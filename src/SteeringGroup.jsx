@@ -866,7 +866,12 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
                         {!proj.collapsed && (
                           <div style={{ display:"flex",alignItems:"center",borderBottom:"1px solid #f1f5f9",minHeight:ROW,background:"#fff" }}>
                             <div style={{ width:LBL,flexShrink:0,padding:"0 6px 0 30px",display:"flex",alignItems:"center",gap:4 }}>
-                              <span style={{ fontSize:10,color:"#cbd5e1",fontStyle:"italic",flex:1 }}>phases</span>
+                              <span style={{ fontSize:10,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>
+                                {proj.owner
+                                  ? <span style={{ color:"#64748b",fontWeight:500 }}>{proj.owner}</span>
+                                  : <span style={{ color:"#cbd5e1",fontStyle:"italic" }}>phases</span>
+                                }
+                              </span>
                               <button title="Add phase"
                                 onClick={()=>{setAddingPhase({themeId:theme.id,pid:proj.id});setNewPhase({name:"",start:0,duration:3,rag:"G",color:theme.color,notes:""});}}
                                 style={{ background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:4,color:"#3b82f6",cursor:"pointer",fontSize:12,padding:"1px 7px",fontFamily:"monospace",lineHeight:1.5,flexShrink:0 }}>+</button>

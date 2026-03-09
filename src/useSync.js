@@ -4,98 +4,20 @@ import { INITIAL_THEMES } from './data.js'
 
 const PROGRAMME_ID = 'achieve-thrive-2026'
 
-// ─── Supabase schema (run once in Supabase SQL editor) ───────────────────────
-// CREATE TABLE IF NOT EXISTS programmes (
-//   id TEXT PRIMARY KEY,
-//   data JSONB NOT NULL,
-//   updated_at TIMESTAMPTZ DEFAULT NOW()
-// );
-// ALTER TABLE programmes ENABLE ROW LEVEL SECURITY;
-// CREATE POLICY "public read/write" ON programmes
-//   FOR ALL USING (true) WITH CHECK (true);
-// INSERT INTO programmes (id, data) VALUES ('achieve-thrive-2026', '[]'::jsonb)
-//   ON CONFLICT DO NOTHING;
-// ─────────────────────────────────────────────────────────────────────────────
-
 export function useSync() {
   const [themes, setThemesState] = useState(INITIAL_THEMES)
-  const [syncStatus, setSyncStatus] = useState('local') // 'local' | 'synced' | 'saving' | 'error'
+  const [syncStatus, setSyncStatus] = useState('local')
   const saveTimer = useRef(null)
-  const latestThemes = useRef(themes)
+  const isSavingRef = useRef(false)  // declared FIRST so all closures can reference it
 
-  // Keep ref in sync
-  useEffect(() => { latestThemes.current = themes }, [themes])
-
-  // ── Load from Supabase on mount ──
-  useEffect(() => {
-    if (!supabase) {
-      setSyncStatus('local')
-      return
-    }
-
-    async function load() {
-      try {
-        const { data, error } = await supabase
-          .from('programmes')
-          .select('data')
-          .eq('id', PROGRAMME_ID)
-          .single()
-
-        if (error) throw error
-
-        if (data?.data && Array.isArray(data.data) && data.data.length > 0) {
-          setThemesState(data.data)
-          setSyncStatus('synced')
-        } else {
-          // First run — push initial data up
-          await supabase.from('programmes').upsert({
-            id: PROGRAMME_ID,
-            data: INITIAL_THEMES,
-            updated_at: new Date().toISOString()
-          })
-          setSyncStatus('synced')
-        }
-      } catch (err) {
-        console.warn('Supabase load failed, using local data:', err.message)
-        setSyncStatus('local')
-      }
-    }
-
-    load()
-
-    // ── Real-time subscription — other devices' changes appear instantly ──
-    const channel = supabase
-      .channel('programme-changes')
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'programmes',
-        filter: `id=eq.${PROGRAMME_ID}`
-      }, (payload) => {
-        // Ignore our own saves echoing back
-        if (isSavingRef.current) return
-        if (payload.new?.data) {
-          setThemesState(payload.new.data)
-          setSyncStatus('synced')
-        }
-      })
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
-  }, [])
-
-  // ── Debounced save — waits 1.5s after last change before writing ──
+  // ── Debounced save ──
   const saveToSupabase = useCallback(async (newThemes) => {
     if (!supabase) return
     setSyncStatus('saving')
     try {
       const { error } = await supabase
         .from('programmes')
-        .upsert({
-          id: PROGRAMME_ID,
-          data: newThemes,
-          updated_at: new Date().toISOString()
-        })
+        .upsert({ id: PROGRAMME_ID, data: newThemes, updated_at: new Date().toISOString() })
       if (error) throw error
       setSyncStatus('synced')
     } catch (err) {
@@ -104,10 +26,51 @@ export function useSync() {
     }
   }, [])
 
-  // Track whether we triggered the last save, so we ignore our own real-time echo
-  const isSavingRef = useRef(false)
+  // ── Load on mount + real-time subscription ──
+  useEffect(() => {
+    if (!supabase) { setSyncStatus('local'); return }
 
-  // ── Public setter — updates local state + queues a save ──
+    async function load() {
+      try {
+        const { data, error } = await supabase
+          .from('programmes').select('data').eq('id', PROGRAMME_ID).single()
+        if (error) throw error
+        if (data?.data && Array.isArray(data.data) && data.data.length > 0) {
+          setThemesState(data.data)
+          setSyncStatus('synced')
+        } else {
+          await supabase.from('programmes').upsert({
+            id: PROGRAMME_ID, data: INITIAL_THEMES, updated_at: new Date().toISOString()
+          })
+          setSyncStatus('synced')
+        }
+      } catch (err) {
+        console.warn('Supabase load failed:', err.message)
+        setSyncStatus('local')
+      }
+    }
+
+    load()
+
+    // Real-time: receive changes from OTHER devices only
+    const channel = supabase
+      .channel('programme-changes')
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'programmes',
+        filter: `id=eq.${PROGRAMME_ID}`
+      }, (payload) => {
+        if (isSavingRef.current) return  // ignore our own echo
+        if (payload.new?.data) {
+          setThemesState(payload.new.data)
+          setSyncStatus('synced')
+        }
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [])  // eslint-disable-line
+
+  // ── Public setter — updates state + queues debounced save ──
   const setThemes = useCallback((updater) => {
     setThemesState(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater
@@ -115,7 +78,7 @@ export function useSync() {
       saveTimer.current = setTimeout(async () => {
         isSavingRef.current = true
         await saveToSupabase(next)
-        setTimeout(() => { isSavingRef.current = false }, 2000)
+        setTimeout(() => { isSavingRef.current = false }, 3000)
       }, 1500)
       return next
     })
