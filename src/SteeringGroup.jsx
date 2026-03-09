@@ -103,6 +103,39 @@ function DetailPanel({ sel, themes, onClose, onUpdate, onDeletePhase, onDeletePr
     );
   }
 
+  // ── Milestone panel ──
+  if (sel.type === "milestone") {
+    const ms = proj?.milestones?.find(m => m.id === sel.phaseId);
+    if (!ms) return null;
+    return (
+      <PanelShell title={ms.name || "Milestone"} subtitle={`${theme.name} / ${proj.name}`} color={ms.color} onClose={onClose}>
+        <NameField value={ms.name} onChange={v => onUpdate("milestone", sel.themeId, sel.projId, sel.phaseId, "name", v)} label="Milestone Name" />
+        <div style={{ marginBottom:13 }}>
+          <div style={LS}>Month</div>
+          <select value={ms.month} onChange={e => onUpdate("milestone", sel.themeId, sel.projId, sel.phaseId, "month", +e.target.value)} style={{ ...IS,width:"100%",marginTop:5 }}>
+            {ALL_MONTHS.map((m,i) => <option key={i} value={i}>{m}</option>)}
+          </select>
+        </div>
+        <div style={{ marginBottom:13 }}>
+          <div style={LS}>Colour</div>
+          <div style={{ display:"flex", gap:5, marginTop:5, flexWrap:"wrap" }}>
+            {PALETTE.map(c => (
+              <div key={c} onClick={() => onUpdate("milestone", sel.themeId, sel.projId, sel.phaseId, "color", c)}
+                style={{ width:22,height:22,transform:"rotate(45deg)",background:c,cursor:"pointer",border:ms.color===c?"3px solid #0f172a":"2px solid transparent" }}/>
+            ))}
+          </div>
+        </div>
+        <NotesField value={ms.notes} onChange={v => onUpdate("milestone", sel.themeId, sel.projId, sel.phaseId, "notes", v)} label="Notes" rows={3} />
+        <div style={{ marginTop:8, paddingTop:16, borderTop:"1px solid #f1f5f9" }}>
+          <button onClick={() => onDeletePhase(sel.themeId, sel.projId, sel.phaseId, "milestone")}
+            style={{ ...BS("#dc2626"), width:"100%", padding:"8px", fontSize:12 }}>
+            🗑 Delete Milestone
+          </button>
+        </div>
+      </PanelShell>
+    );
+  }
+
   const phase = proj?.phases.find(ph => ph.id === sel.phaseId);
   if (!phase) return null;
 
@@ -470,6 +503,8 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
   const [zoomIdx, setZoomIdx]       = useState(0);
   const [addingPhase, setAddingPhase]     = useState(null);
   const [newPhase, setNewPhase]           = useState({name:"",start:0,duration:3,rag:"G",color:"#3b82f6",notes:""});
+  const [addingMilestone, setAddingMilestone] = useState(null);
+  const [newMilestone, setNewMilestone]       = useState({name:"",month:0,color:"#f59e0b",notes:""});
   const [addingProject, setAddingProject] = useState(null);
   const [newProjName, setNewProjName]     = useState("");
   const [highlightProjId, setHighlightProjId] = useState(null);
@@ -556,6 +591,7 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
       return { ...t, projects: t.projects.map(p => {
         if (p.id !== projId) return p;
         if (type === "project") return { ...p,[field]:value };
+        if (type === "milestone") return { ...p, milestones:(p.milestones||[]).map(m=>m.id!==phaseId?m:{...m,[field]:value}) };
         return { ...p, phases: p.phases.map(ph => ph.id!==phaseId ? ph : {...ph,[field]:value}) };
       })};
     }));
@@ -598,13 +634,26 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
   };
   const doAddProject = (themeId) => {
     if (!newProjName.trim()) return;
-    pushThemes(prev=>prev.map(t=>t.id!==themeId?t:{...t,projects:[...t.projects,{id:uid(),name:newProjName,owner:"",rag:"G",notes:"",status:"",funding:"",deliverables:"",collapsed:false,phases:[]}]}));
+    pushThemes(prev=>prev.map(t=>t.id!==themeId?t:{...t,projects:[...t.projects,{id:uid(),name:newProjName,owner:"",rag:"G",notes:"",status:"",funding:"",deliverables:"",collapsed:false,phases:[],milestones:[]}]}));
     setNewProjName(""); setAddingProject(null);
+  };
+  const doAddMilestone = (themeId, projId) => {
+    if (!newMilestone.name.trim()) return;
+    pushThemes(prev=>prev.map(t=>t.id!==themeId?t:{...t,projects:t.projects.map(p=>p.id!==projId?p:{...p,milestones:[...(p.milestones||[]),{...newMilestone,id:uid()}]})}));
+    setNewMilestone({name:"",month:0,color:"#f59e0b",notes:""}); setAddingMilestone(null);
+  };
+  const doDeleteMilestone = (themeId, projId, msId) => {
+    pushThemes(prev=>prev.map(t=>t.id!==themeId?t:{...t,projects:t.projects.map(p=>p.id!==projId?p:{...p,milestones:(p.milestones||[]).filter(m=>m.id!==msId)})}));
+    setSel(null);
   };
 
   // ── Delete handlers ──
-  const doDeletePhase = (themeId, projId, phaseId) => {
-    pushThemes(prev => prev.map(t => t.id!==themeId?t:{...t,projects:t.projects.map(p=>p.id!==projId?p:{...p,phases:p.phases.filter(ph=>ph.id!==phaseId)})}));
+  const doDeletePhase = (themeId, projId, phaseId, kind="phase") => {
+    if (kind === "milestone") {
+      pushThemes(prev => prev.map(t => t.id!==themeId?t:{...t,projects:t.projects.map(p=>p.id!==projId?p:{...p,milestones:(p.milestones||[]).filter(m=>m.id!==phaseId)})}));
+    } else {
+      pushThemes(prev => prev.map(t => t.id!==themeId?t:{...t,projects:t.projects.map(p=>p.id!==projId?p:{...p,phases:p.phases.filter(ph=>ph.id!==phaseId)})}));
+    }
     setSel(null);
   };
   const doDeleteProject = (themeId, projId) => {
@@ -886,6 +935,9 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
                               <button title="Add phase"
                                 onClick={()=>{setAddingPhase({themeId:theme.id,pid:proj.id});setNewPhase({name:"",start:0,duration:3,rag:"G",color:theme.color,notes:""});}}
                                 style={{ background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:4,color:"#3b82f6",cursor:"pointer",fontSize:12,padding:"1px 7px",fontFamily:"monospace",lineHeight:1.5,flexShrink:0 }}>+</button>
+                              <button title="Add milestone"
+                                onClick={()=>{setAddingMilestone({themeId:theme.id,pid:proj.id});setNewMilestone({name:"",month:0,color:"#f59e0b",notes:""});}}
+                                style={{ background:"#fffbeb",border:"1px solid #fde68a",borderRadius:4,color:"#d97706",cursor:"pointer",fontSize:12,padding:"1px 7px",fontFamily:"monospace",lineHeight:1.5,flexShrink:0 }}>◆</button>
                             </div>
                             <div style={{ position:"relative",display:"flex" }}>
                               {MONTHS.map((_,i)=>(
@@ -934,6 +986,31 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
                                   </div>
                                 );
                               })}
+                              {/* Milestone diamonds */}
+                              {(proj.milestones||[]).map(ms=>{
+                                if (ms.month>=MONTHS.length) return null;
+                                const isSel = sel?.type==="milestone" && sel?.phaseId===ms.id;
+                                const sz = mobile ? 18 : 20;
+                                const cx = ms.month*COL + COL/2;
+                                return (
+                                  <div key={ms.id}
+                                    title={`◆ ${ms.name}${ms.notes?" — "+ms.notes:""} | ${ALL_MONTHS[ms.month]}`}
+                                    onClick={e=>{e.stopPropagation();setSel(isSel?null:{type:"milestone",themeId:theme.id,projId:proj.id,phaseId:ms.id});}}
+                                    style={{
+                                      position:"absolute",
+                                      left: cx - sz/2,
+                                      top: ROW/2 - sz/2,
+                                      width: sz, height: sz,
+                                      transform:"rotate(45deg)",
+                                      background: ms.color,
+                                      border: isSel ? `2px solid #0f172a` : `2px solid ${ms.color}cc`,
+                                      cursor:"pointer",
+                                      zIndex:10,
+                                      boxShadow: isSel ? `0 0 0 3px ${ms.color}66, 0 2px 8px rgba(0,0,0,0.2)` : "0 1px 4px rgba(0,0,0,0.2)",
+                                    }}
+                                  />
+                                );
+                              })}
                             </div>
                           </div>
                         )}
@@ -956,6 +1033,20 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
                             </div>
                             <button onClick={()=>doAddPhase(theme.id,proj.id)} style={BS("#3b82f6")}>Add</button>
                             <button onClick={()=>setAddingPhase(null)} style={BS("#94a3b8")}>Cancel</button>
+                          </div>
+                        )}
+                        {/* Add milestone form */}
+                        {addingMilestone?.themeId===theme.id && addingMilestone?.pid===proj.id && (
+                          <div style={{ display:"flex",flexWrap:"wrap",gap:6,padding:"8px 10px 8px 34px",background:"#fffbeb",borderBottom:"1px solid #fde68a" }}>
+                            <input placeholder="Milestone name" value={newMilestone.name} onChange={e=>setNewMilestone(n=>({...n,name:e.target.value}))} style={IS} autoFocus/>
+                            <select value={newMilestone.month} onChange={e=>setNewMilestone(n=>({...n,month:+e.target.value}))} style={IS}>
+                              {ALL_MONTHS.map((m,i)=><option key={i} value={i}>{m}</option>)}
+                            </select>
+                            <div style={{ display:"flex",gap:4,alignItems:"center" }}>
+                              {PALETTE.map(c=>(<div key={c} onClick={()=>setNewMilestone(n=>({...n,color:c}))} style={{ width:16,height:16,transform:"rotate(45deg)",background:c,cursor:"pointer",border:newMilestone.color===c?"2px solid #0f172a":"2px solid transparent" }}/>))}
+                            </div>
+                            <button onClick={()=>doAddMilestone(theme.id,proj.id)} style={BS("#d97706")}>Add ◆</button>
+                            <button onClick={()=>setAddingMilestone(null)} style={BS("#94a3b8")}>Cancel</button>
                           </div>
                         )}
                       </div>
