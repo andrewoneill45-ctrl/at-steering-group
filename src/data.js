@@ -30,7 +30,7 @@ export const uid = () => `x${_uid++}`;
 export const ragWorst = rags => rags.includes("R") ? "R" : rags.includes("A") ? "A" : "G";
 
 // ─── Policy summaries (from White Paper) ─────────────────────────────────────
-const POLICY_SUMMARIES = {
+export const POLICY_SUMMARIES = {
   "p1":  "Best Start Family Hubs revitalise the Sure Start model, creating a single community access point integrating health visiting, family support, and early education. Every hub will have a dedicated SEND practitioner. Backed by £200m+ over three years, this is the government's flagship early years place-based intervention.",
   "p2":  "A fundamental review of childcare and early education to improve access and coherence for families. Includes expansion of school-based nurseries and links to the 30 hours funded childcare expansion. The review aims to simplify the system and deliver a coherent local offer across all communities.",
   "p3":  "Expands early family help and integrates it with school attendance support. Severely absent children will be automatically assessed for Family Help. Part of the wider £2bn+ children's social care investment, this programme embeds a whole-family approach at the heart of school improvement.",
@@ -74,7 +74,7 @@ const POLICY_SUMMARIES = {
 };
 
 // ─── Initial data ─────────────────────────────────────────────────────────────
-const INITIAL_THEMES = [
+export const INITIAL_THEMES = [
   { id:"th1", color:"#0ea5e9", name:"Our Children's Futures", subtitle:"Wrapping Services Around Children & Families", rag:"G", owner:"", notes:"", collapsed:false,
     projects:[
       { id:"p1",  name:"Best Start Family Hubs & Healthy Babies", owner:"", rag:"G", notes:"", status:"", funding:"£200m+ over 3 years for SEND practitioners in hubs", deliverables:"Revitalise Sure Start model; single access point for health, family support & early education; dedicated SEND practitioner in every hub", collapsed:false,
