@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import Missions from "./Missions.jsx";
 import {
   ALL_MONTHS, TODAY_IDX, RAG, PALETTE, ZOOM_LEVELS, uid, ragWorst,
   POLICY_SUMMARIES, INITIAL_THEMES
@@ -496,7 +497,7 @@ function Dashboard({ themes, onNavigateToProject }) {
 }
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
-export default function SteeringGroup({ themes, setThemes, syncStatus = "local" }) {
+export default function SteeringGroup({ themes, setThemes, syncStatus = "local", missions=[], setMissions=()=>{}, missionsSyncStatus="local" }) {
   const [view, setView]             = useState("dashboard");
   const [sel, setSel]               = useState(null);
   const [filter, setFilter]         = useState("ALL");
@@ -706,7 +707,7 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
 
         {/* Nav */}
         <div style={{ display:"flex", gap:2 }}>
-          {["dashboard","timelines"].map(v => (
+          {["dashboard","timelines","missions"].map(v => (
             <button key={v} onClick={()=>setView(v)} style={{
               padding: mobile ? "5px 10px" : "5px 14px", borderRadius:20, border:"none", cursor:"pointer",
               background:view===v?"#0f172a":"transparent",
@@ -736,7 +737,7 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
         </div>
 
         {/* Zoom — hidden on mobile */}
-        {view==="timelines" && !mobile && (
+        {(view==="timelines"||view==="missions") && !mobile && (
           <div style={{ display:"flex", gap:4, alignItems:"center", marginLeft:14 }}>
             {!tablet && <span style={{ fontSize:10, color:"#94a3b8", fontWeight:600 }}>ZOOM</span>}
             {ZOOM_LEVELS.map((z,i) => (
@@ -1077,8 +1078,13 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
       )}
 
 
+      {/* Missions tab */}
+      {view==="missions" && (
+        <Missions missions={missions} setMissions={setMissions} syncStatus={missionsSyncStatus} />
+      )}
+
       {/* Sync status chip */}
-      {view==="timelines" && (
+      {(view==="timelines"||view==="dashboard") && (
         <div style={{ position:"fixed",bottom:16,right: sel ? (mobile?"0":"356px") : "16px",
           fontSize:10,fontFamily:"monospace",background:"#fff",padding:"4px 10px",borderRadius:20,
           border:`1px solid ${syncStatus==="synced"?"#bbf7d0":syncStatus==="saving"?"#fde68a":syncStatus==="error"?"#fecaca":"#e2e8f0"}`,
@@ -1089,7 +1095,7 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
         </div>
       )}
       {/* Today chip */}
-      {view==="timelines" && (
+      {(view==="timelines"||view==="missions") && (
         <div style={{ position:"fixed",bottom:16,left:16,fontSize:10,color:"#3b82f6",fontFamily:"monospace",background:"#fff",padding:"4px 10px",borderRadius:20,border:"1px solid #bfdbfe",boxShadow:"0 1px 3px rgba(0,0,0,0.1)" }}>
           ◆ Today: {ALL_MONTHS[TODAY_IDX]??"—"}
         </div>
