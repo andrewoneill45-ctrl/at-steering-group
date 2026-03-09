@@ -822,7 +822,6 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
                             <RagDot rag={proj.rag} size={7} />
                             <span style={{ fontSize:11,fontWeight:600,color:"#1e293b",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1 }}>{proj.name}</span>
                             {hasNotes && <span title="Has notes" style={{ fontSize:11,flexShrink:0 }}>📝</span>}
-                            {proj.owner && <span style={{ fontSize:9,color:"#94a3b8",flexShrink:0,maxWidth:56,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{proj.owner}</span>}
 
                           </div>
 
