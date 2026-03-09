@@ -817,6 +817,8 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local",
       {/* Content */}
       {view==="dashboard" ? (
         <Dashboard themes={themes} onNavigateToProject={handleNavigateToProject} />
+      ) : view==="missions" ? (
+        <Missions missions={missions} setMissions={setMissions} syncStatus={missionsSyncStatus} />
       ) : (
         <div style={{ flex:1,overflowX:"auto",paddingBottom:60 }}>
           <div style={{ minWidth:LBL+MONTHS.length*COL+40 }}>
@@ -1077,11 +1079,6 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local",
         </div>
       )}
 
-
-      {/* Missions tab */}
-      {view==="missions" && (
-        <Missions missions={missions} setMissions={setMissions} syncStatus={missionsSyncStatus} />
-      )}
 
       {/* Sync status chip */}
       {(view==="timelines"||view==="dashboard") && (
