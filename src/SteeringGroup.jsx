@@ -27,7 +27,7 @@ const BS = bg => ({ background:bg+"18", border:`1px solid ${bg}66`, borderRadius
 const LS = { fontSize:9, letterSpacing:"0.13em", textTransform:"uppercase", color:"#94a3b8", fontWeight:700 };
 
 // ─── Detail Panel ────────────────────────────────────────────────────────────
-function DetailPanel({ sel, themes, onClose, onUpdate }) {
+function DetailPanel({ sel, themes, onClose, onUpdate, onDeletePhase, onDeleteProject, onDeleteTheme }) {
   if (!sel) return null;
   const theme = themes.find(t => t.id === sel.themeId);
   if (!theme) return null;
@@ -38,6 +38,11 @@ function DetailPanel({ sel, themes, onClose, onUpdate }) {
         <OwnerField value={theme.owner} onChange={v => onUpdate("theme", sel.themeId, null, null, "owner", v)} />
         <RagSelector value={theme.rag} onChange={v => onUpdate("theme", sel.themeId, null, null, "rag", v)} />
         <NotesField value={theme.notes} onChange={v => onUpdate("theme", sel.themeId, null, null, "notes", v)} label="Theme Notes" />
+        <div style={{ marginTop:8, paddingTop:16, borderTop:"1px solid #f1f5f9" }}>
+          <button onClick={() => onDeleteTheme(sel.themeId)} style={{ ...BS("#dc2626"), width:"100%", padding:"8px", fontSize:12 }}>
+            🗑 Delete Theme &amp; All Projects
+          </button>
+        </div>
       </PanelShell>
     );
   }
@@ -69,18 +74,30 @@ function DetailPanel({ sel, themes, onClose, onUpdate }) {
             <div style={{ fontSize:12, color:"#4c1d95", lineHeight:1.7 }}>{summary}</div>
           </div>
         )}
+        <div style={{ paddingTop:8, paddingBottom:8 }}>
+          <button onClick={() => onDeleteProject(sel.themeId, sel.projId)} style={{ ...BS("#dc2626"), width:"100%", padding:"8px", fontSize:12 }}>
+            🗑 Delete Project
+          </button>
+        </div>
         <div style={{ marginTop:14 }}>
           <div style={LS}>Phases</div>
           {proj.phases.map(ph => (
-            <div key={ph.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 0", borderBottom:"1px solid #f1f5f9", cursor:"pointer" }}
-              onClick={() => onUpdate("__sel", sel.themeId, sel.projId, ph.id)}>
-              <span style={{ width:10,height:10,borderRadius:2,background:ph.color,flexShrink:0 }}/>
-              <span style={{ fontSize:12,color:"#374151",flex:1 }}>{ph.name}</span>
-              {ph.notes && <span title="Has notes" style={{ fontSize:11,color:"#f59e0b" }}>📝</span>}
-              <RagDot rag={ph.rag} size={7} />
-              <span style={{ fontSize:10,color:"#94a3b8",fontFamily:"monospace",flexShrink:0 }}>
-                {ALL_MONTHS[ph.start]}→{ALL_MONTHS[Math.min(ph.start+ph.duration-1,ALL_MONTHS.length-1)]}
-              </span>
+            <div key={ph.id} style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 0", borderBottom:"1px solid #f1f5f9" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, flex:1, cursor:"pointer", minWidth:0 }}
+                onClick={() => onUpdate("__sel", sel.themeId, sel.projId, ph.id)}>
+                <span style={{ width:10,height:10,borderRadius:2,background:ph.color,flexShrink:0 }}/>
+                <span style={{ fontSize:12,color:"#374151",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{ph.name}</span>
+                {ph.notes && <span title="Has notes" style={{ fontSize:11,color:"#f59e0b" }}>📝</span>}
+                <RagDot rag={ph.rag} size={7} />
+                <span style={{ fontSize:10,color:"#94a3b8",fontFamily:"monospace",flexShrink:0 }}>
+                  {ALL_MONTHS[ph.start]}→{ALL_MONTHS[Math.min(ph.start+ph.duration-1,ALL_MONTHS.length-1)]}
+                </span>
+              </div>
+              <button onClick={() => onDeletePhase(sel.themeId, sel.projId, ph.id)}
+                style={{ background:"none",border:"none",cursor:"pointer",color:"#e2e8f0",fontSize:16,padding:"2px 4px",flexShrink:0,lineHeight:1 }}
+                onMouseEnter={e=>e.currentTarget.style.color="#dc2626"}
+                onMouseLeave={e=>e.currentTarget.style.color="#e2e8f0"}
+                title="Delete phase">✕</button>
             </div>
           ))}
         </div>
@@ -454,7 +471,43 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
   const ROW = 40;
   const LBL = mobile ? 160 : tablet ? 200 : 248;
 
-  // Navigate from dashboard → timelines and scroll to project
+  // ── Undo / Redo history ──
+  const [history, setHistory] = useState([themes]);
+  const [histIdx, setHistIdx] = useState(0);
+  const histRef = useRef({ history:[themes], idx:0 });
+
+  const pushThemes = useCallback((updater, skipHistory=false) => {
+    const next = typeof updater === "function" ? updater(histRef.current.history[histRef.current.idx]) : updater;
+    setThemes(next);
+    if (skipHistory) return;
+    const trimmed = histRef.current.history.slice(0, histRef.current.idx + 1);
+    const newHist = [...trimmed, next].slice(-50);
+    histRef.current.history = newHist;
+    histRef.current.idx = newHist.length - 1;
+    setHistory([...newHist]);
+    setHistIdx(newHist.length - 1);
+  }, [setThemes]);
+
+  const canUndo = histIdx > 0;
+  const canRedo = histIdx < history.length - 1;
+
+  const doUndo = useCallback(() => {
+    if (histRef.current.idx <= 0) return;
+    const newIdx = histRef.current.idx - 1;
+    histRef.current.idx = newIdx;
+    setHistIdx(newIdx);
+    setThemes(histRef.current.history[newIdx]);
+  }, [setThemes]);
+
+  const doRedo = useCallback(() => {
+    if (histRef.current.idx >= histRef.current.history.length - 1) return;
+    const newIdx = histRef.current.idx + 1;
+    histRef.current.idx = newIdx;
+    setHistIdx(newIdx);
+    setThemes(histRef.current.history[newIdx]);
+  }, [setThemes]);
+
+  // ── Navigate from dashboard → timelines and scroll to project
   const handleNavigateToProject = (themeId, projId) => {
     setView("timelines");
     setHighlightProjId(projId);
@@ -472,7 +525,7 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
   // ── Update dispatcher ──
   const handleUpdate = useCallback((type, themeId, projId, phaseId, field, value) => {
     if (type === "__sel") { setSel({type:"phase",themeId,projId,phaseId}); return; }
-    setThemes(prev => prev.map(t => {
+    pushThemes(prev => prev.map(t => {
       if (t.id !== themeId) return t;
       if (type === "theme") return { ...t,[field]:value };
       return { ...t, projects: t.projects.map(p => {
@@ -481,9 +534,8 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
         return { ...p, phases: p.phases.map(ph => ph.id!==phaseId ? ph : {...ph,[field]:value}) };
       })};
     }));
-    // Keep sel in sync for phase edits
     if (type==="phase") setSel(s => s?.phaseId===phaseId ? {...s} : s);
-  }, []);
+  }, [pushThemes]);
 
   // ── Drag (mouse + touch) ──
   const handleDrag = (e, themeId, projId, phase, mode) => {
@@ -497,8 +549,7 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
       if (mode==="move")  ns=Math.max(0,Math.min(ALL_MONTHS.length-1,orig.start+dm));
       if (mode==="right") nd=Math.max(1,Math.min(ALL_MONTHS.length-orig.start,orig.duration+dm));
       if (mode==="left")  { const d=Math.min(dm,orig.duration-1); ns=Math.max(0,orig.start+d); nd=Math.max(1,orig.duration-d); }
-      handleUpdate("phase",themeId,projId,phase.id,"start",ns);
-      handleUpdate("phase",themeId,projId,phase.id,"duration",nd);
+      pushThemes(prev => prev.map(t => t.id!==themeId?t:{...t,projects:t.projects.map(p=>p.id!==projId?p:{...p,phases:p.phases.map(ph=>ph.id!==phase.id?ph:{...ph,start:ns,duration:nd})})}), true);
     };
     const onUp = () => {
       window.removeEventListener("mousemove",onMove); window.removeEventListener("mouseup",onUp);
@@ -508,18 +559,34 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
     window.addEventListener("touchmove",onMove,{passive:false}); window.addEventListener("touchend",onUp);
   };
 
-  const toggleTheme   = id => setThemes(p=>p.map(t=>t.id===id?{...t,collapsed:!t.collapsed}:t));
-  const toggleProject = (tid,pid) => setThemes(p=>p.map(t=>t.id!==tid?t:{...t,projects:t.projects.map(p=>p.id!==pid?p:{...p,collapsed:!p.collapsed})}));
+  const toggleTheme   = id => pushThemes(p=>p.map(t=>t.id===id?{...t,collapsed:!t.collapsed}:t), true);
+  const toggleProject = (tid,pid) => pushThemes(p=>p.map(t=>t.id!==tid?t:{...t,projects:t.projects.map(p=>p.id!==pid?p:{...p,collapsed:!p.collapsed})}), true);
 
   const doAddPhase = (themeId,projId) => {
     if (!newPhase.name.trim()) return;
-    setThemes(prev=>prev.map(t=>t.id!==themeId?t:{...t,projects:t.projects.map(p=>p.id!==projId?p:{...p,phases:[...p.phases,{...newPhase,id:uid()}]})}));
+    pushThemes(prev=>prev.map(t=>t.id!==themeId?t:{...t,projects:t.projects.map(p=>p.id!==projId?p:{...p,phases:[...p.phases,{...newPhase,id:uid()}]})}));
     setNewPhase({name:"",start:0,duration:3,rag:"G",color:"#3b82f6",notes:""}); setAddingPhase(null);
   };
   const doAddProject = (themeId) => {
     if (!newProjName.trim()) return;
-    setThemes(prev=>prev.map(t=>t.id!==themeId?t:{...t,projects:[...t.projects,{id:uid(),name:newProjName,owner:"",rag:"G",notes:"",status:"",funding:"",deliverables:"",collapsed:false,phases:[]}]}));
+    pushThemes(prev=>prev.map(t=>t.id!==themeId?t:{...t,projects:[...t.projects,{id:uid(),name:newProjName,owner:"",rag:"G",notes:"",status:"",funding:"",deliverables:"",collapsed:false,phases:[]}]}));
     setNewProjName(""); setAddingProject(null);
+  };
+
+  // ── Delete handlers ──
+  const doDeletePhase = (themeId, projId, phaseId) => {
+    pushThemes(prev => prev.map(t => t.id!==themeId?t:{...t,projects:t.projects.map(p=>p.id!==projId?p:{...p,phases:p.phases.filter(ph=>ph.id!==phaseId)})}));
+    setSel(null);
+  };
+  const doDeleteProject = (themeId, projId) => {
+    if (!window.confirm("Delete this project and all its phases? This can be undone.")) return;
+    pushThemes(prev => prev.map(t => t.id!==themeId?t:{...t,projects:t.projects.filter(p=>p.id!==projId)}));
+    setSel(null);
+  };
+  const doDeleteTheme = (themeId) => {
+    if (!window.confirm("Delete this entire theme and all its projects? This can be undone.")) return;
+    pushThemes(prev => prev.filter(t => t.id!==themeId));
+    setSel(null);
   };
 
   const allPhases = themes.flatMap(t=>t.projects.flatMap(p=>p.phases));
@@ -569,6 +636,24 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
               fontSize: mobile ? 11 : 12, fontWeight:view===v?600:400, fontFamily:"inherit",
               textTransform:"capitalize",
             }}>{v}</button>
+          ))}
+        </div>
+
+        {/* Undo / Redo */}
+        <div style={{ display:"flex", gap:2, marginLeft: mobile ? 6 : 10 }}>
+          {[
+            { label:"↩", title:"Undo", action:doUndo, enabled:canUndo },
+            { label:"↪", title:"Redo", action:doRedo, enabled:canRedo },
+          ].map(({label,title,action,enabled}) => (
+            <button key={title} onClick={action} title={title} disabled={!enabled} style={{
+              width: mobile ? 30 : 32, height: mobile ? 30 : 32,
+              borderRadius:8, border:"1px solid #e2e8f0",
+              background: enabled ? "#fff" : "#f8fafc",
+              color: enabled ? "#374151" : "#cbd5e1",
+              cursor: enabled ? "pointer" : "default",
+              fontSize:15, fontFamily:"inherit", display:"flex",
+              alignItems:"center", justifyContent:"center",
+            }}>{label}</button>
           ))}
         </div>
 
@@ -868,7 +953,7 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
         </div>
       )}
 
-      <DetailPanel sel={sel} themes={themes} onClose={()=>setSel(null)} onUpdate={handleUpdate} />
+      <DetailPanel sel={sel} themes={themes} onClose={()=>setSel(null)} onUpdate={handleUpdate} onDeletePhase={doDeletePhase} onDeleteProject={doDeleteProject} onDeleteTheme={doDeleteTheme} />
     </div>
   );
 }
