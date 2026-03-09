@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   ALL_MONTHS, TODAY_IDX, RAG, PALETTE, ZOOM_LEVELS, uid, ragWorst,
   POLICY_SUMMARIES, INITIAL_THEMES
@@ -477,11 +477,26 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
   const [history, setHistory] = useState([themes]);
   const [histIdx, setHistIdx] = useState(0);
   const histRef = useRef({ history:[themes], idx:0 });
+  // Always holds latest themes so toggles never read stale state
+  const themesRef = useRef(themes);
+  useEffect(() => { themesRef.current = themes; }, [themes]);
 
   const pushThemes = useCallback((updater, skipHistory=false) => {
-    const next = typeof updater === "function" ? updater(histRef.current.history[histRef.current.idx]) : updater;
+    if (skipHistory) {
+      // For UI-only changes (collapse/expand/drag) pass updater directly
+      // so React always resolves against the latest state
+      setThemes(prev => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        themesRef.current = next;
+        return next;
+      });
+      return;
+    }
+    // For history-tracked changes, compute next from latest known state
+    const current = themesRef.current;
+    const next = typeof updater === "function" ? updater(current) : updater;
+    themesRef.current = next;
     setThemes(next);
-    if (skipHistory) return;
     const trimmed = histRef.current.history.slice(0, histRef.current.idx + 1);
     const newHist = [...trimmed, next].slice(-50);
     histRef.current.history = newHist;
