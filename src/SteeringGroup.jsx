@@ -789,7 +789,14 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
                             <RagDot rag={proj.rag} size={7} />
                             <span style={{ fontSize:11,fontWeight:600,color:"#1e293b",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1 }}>{proj.name}</span>
                             {hasNotes && <span title="Has notes" style={{ fontSize:11,flexShrink:0 }}>📝</span>}
-                            {proj.owner && <span style={{ fontSize:9,color:"#94a3b8",flexShrink:0,maxWidth:72,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{proj.owner}</span>}
+                            {proj.owner && <span style={{ fontSize:9,color:"#94a3b8",flexShrink:0,maxWidth:56,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{proj.owner}</span>}
+                            <button
+                              title="Delete project"
+                              onClick={e=>{e.stopPropagation();doDeleteProject(theme.id,proj.id);}}
+                              style={{ background:"none",border:"none",cursor:"pointer",color:"#e2e8f0",fontSize:13,padding:"2px 3px",flexShrink:0,lineHeight:1,marginLeft:2 }}
+                              onMouseEnter={e=>e.currentTarget.style.color="#dc2626"}
+                              onMouseLeave={e=>e.currentTarget.style.color="#e2e8f0"}
+                            >🗑</button>
                           </div>
 
                           {proj.collapsed ? (
@@ -880,6 +887,21 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
                                       onMouseDown={e=>{e.stopPropagation();handleDrag(e,theme.id,proj.id,phase,"right");}}
                                       onTouchStart={e=>{e.stopPropagation();handleDrag(e,theme.id,proj.id,phase,"right");}}
                                       style={{ position:"absolute",right:0,top:0,width: mobile?14:6,height:"100%",cursor:"ew-resize",zIndex:3,touchAction:"none" }}/>
+                                    {isSel && (
+                                      <div
+                                        onClick={e=>{e.stopPropagation();doDeletePhase(theme.id,proj.id,phase.id);}}
+                                        style={{
+                                          position:"absolute", top:-10, right:-8, zIndex:10,
+                                          width:18, height:18, borderRadius:"50%",
+                                          background:"#dc2626", color:"#fff",
+                                          display:"flex", alignItems:"center", justifyContent:"center",
+                                          fontSize:11, fontWeight:700, cursor:"pointer",
+                                          boxShadow:"0 1px 4px rgba(0,0,0,0.25)",
+                                          lineHeight:1,
+                                        }}
+                                        title="Delete phase"
+                                      >✕</div>
+                                    )}
                                   </div>
                                 );
                               })}
