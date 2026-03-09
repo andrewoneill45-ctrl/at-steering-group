@@ -990,7 +990,7 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
                               {(proj.milestones||[]).map(ms=>{
                                 if (ms.month>=MONTHS.length) return null;
                                 const isSel = sel?.type==="milestone" && sel?.phaseId===ms.id;
-                                const sz = mobile ? 18 : 20;
+                                const sz = mobile ? 12 : 14;
                                 const cx = ms.month*COL + COL/2;
                                 return (
                                   <div key={ms.id}
