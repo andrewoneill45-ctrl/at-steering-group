@@ -72,6 +72,8 @@ export function useSync() {
         table: 'programmes',
         filter: `id=eq.${PROGRAMME_ID}`
       }, (payload) => {
+        // Ignore our own saves echoing back
+        if (isSavingRef.current) return
         if (payload.new?.data) {
           setThemesState(payload.new.data)
           setSyncStatus('synced')
@@ -102,13 +104,19 @@ export function useSync() {
     }
   }, [])
 
+  // Track whether we triggered the last save, so we ignore our own real-time echo
+  const isSavingRef = useRef(false)
+
   // ── Public setter — updates local state + queues a save ──
   const setThemes = useCallback((updater) => {
     setThemesState(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater
-      // Debounce saves: clear pending timer, set new one
       if (saveTimer.current) clearTimeout(saveTimer.current)
-      saveTimer.current = setTimeout(() => saveToSupabase(next), 1500)
+      saveTimer.current = setTimeout(async () => {
+        isSavingRef.current = true
+        await saveToSupabase(next)
+        setTimeout(() => { isSavingRef.current = false }, 2000)
+      }, 1500)
       return next
     })
   }, [saveToSupabase])
