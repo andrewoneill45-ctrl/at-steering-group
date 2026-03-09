@@ -778,7 +778,6 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
             </div>
 
             {visThemes.map(theme => {
-              const themeWorst = ragWorst([theme.rag,...theme.projects.map(p=>p.rag)]);
               return (
                 <div key={theme.id}>
                   {/* Theme header */}
@@ -791,7 +790,7 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
                         <div style={{ fontSize:12,fontWeight:700,color:"#0f172a" }}>{theme.name}</div>
                         <div style={{ fontSize:10,color:"#64748b" }}>{theme.subtitle}</div>
                       </div>
-                      <RagBadge rag={themeWorst} small />
+                      <RagBadge rag={theme.rag} small />
                       <button onClick={e=>{e.stopPropagation();setSel({type:"theme",themeId:theme.id})}}
                         style={{ background:"none",border:"none",color:"#94a3b8",cursor:"pointer",padding:"2px 4px",fontSize:12,lineHeight:1,flexShrink:0 }}>✎</button>
                     </div>
