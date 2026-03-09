@@ -564,6 +564,10 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
   const toggleTheme   = id => pushThemes(p=>p.map(t=>t.id===id?{...t,collapsed:!t.collapsed}:t), true);
   const toggleProject = (tid,pid) => pushThemes(p=>p.map(t=>t.id!==tid?t:{...t,projects:t.projects.map(p=>p.id!==pid?p:{...p,collapsed:!p.collapsed})}), true);
 
+  const allCollapsed = themes.every(t => t.collapsed);
+  const collapseAll  = () => pushThemes(p=>p.map(t=>({...t, collapsed:true,  projects:t.projects.map(p=>({...p,collapsed:true}))})),  true);
+  const expandAll    = () => pushThemes(p=>p.map(t=>({...t, collapsed:false, projects:t.projects.map(p=>({...p,collapsed:false}))})), true);
+
   const doAddPhase = (themeId,projId) => {
     if (!newPhase.name.trim()) return;
     pushThemes(prev=>prev.map(t=>t.id!==themeId?t:{...t,projects:t.projects.map(p=>p.id!==projId?p:{...p,phases:[...p.phases,{...newPhase,id:uid()}]})}));
@@ -675,6 +679,19 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
           </div>
         )}
 
+        {/* Collapse / Expand All — timelines only */}
+        {view==="timelines" && !mobile && (
+          <button onClick={allCollapsed ? expandAll : collapseAll} style={{
+            marginLeft:10, padding:"3px 11px", borderRadius:16, cursor:"pointer",
+            border:"1px solid #e2e8f0", background:"#fff", color:"#64748b",
+            fontSize:11, fontFamily:"inherit", fontWeight:500,
+            display:"flex", alignItems:"center", gap:5,
+          }}>
+            <span style={{ fontSize:10 }}>{allCollapsed ? "▼▼" : "▶▶"}</span>
+            {allCollapsed ? "Expand all" : "Collapse all"}
+          </button>
+        )}
+
         {/* RAG filters */}
         <div style={{ display:"flex", gap: mobile?4:6, alignItems:"center", marginLeft:"auto" }}>
           {["G","A","R"].map(k=>(
@@ -716,7 +733,11 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
               fontSize:12, cursor:"pointer", fontFamily:"inherit", fontWeight:i===zoomIdx?700:400,
             }}>{z.label}</button>
           ))}
-          <span style={{ fontSize:10, color:"#cbd5e1", marginLeft:"auto" }}>← scroll →</span>
+          <button onClick={allCollapsed ? expandAll : collapseAll} style={{
+            marginLeft:"auto", padding:"5px 10px", borderRadius:16, cursor:"pointer",
+            border:"1px solid #e2e8f0", background:"#fff", color:"#64748b",
+            fontSize:11, fontFamily:"inherit",
+          }}>{allCollapsed ? "▼ Expand" : "▶ Collapse"}</button>
         </div>
       )}
 
