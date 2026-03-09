@@ -93,11 +93,7 @@ function DetailPanel({ sel, themes, onClose, onUpdate, onDeletePhase, onDeletePr
                   {ALL_MONTHS[ph.start]}→{ALL_MONTHS[Math.min(ph.start+ph.duration-1,ALL_MONTHS.length-1)]}
                 </span>
               </div>
-              <button onClick={() => onDeletePhase(sel.themeId, sel.projId, ph.id)}
-                style={{ background:"none",border:"none",cursor:"pointer",color:"#e2e8f0",fontSize:16,padding:"2px 4px",flexShrink:0,lineHeight:1 }}
-                onMouseEnter={e=>e.currentTarget.style.color="#dc2626"}
-                onMouseLeave={e=>e.currentTarget.style.color="#e2e8f0"}
-                title="Delete phase">✕</button>
+
             </div>
           ))}
         </div>
@@ -145,6 +141,12 @@ function DetailPanel({ sel, themes, onClose, onUpdate, onDeletePhase, onDeletePr
         <div>Duration: <strong style={{ color:"#0f172a" }}>{phase.duration} month{phase.duration>1?"s":""}</strong></div>
       </div>
       <NotesField value={phase.notes||""} onChange={v => onUpdate("phase", sel.themeId, sel.projId, sel.phaseId, "notes", v)} label="Phase Notes" rows={3} />
+      <div style={{ paddingTop:8, borderTop:"1px solid #f1f5f9" }}>
+        <button onClick={() => onDeletePhase(sel.themeId, sel.projId, sel.phaseId)}
+          style={{ ...BS("#dc2626"), width:"100%", padding:"9px", fontSize:12 }}>
+          Delete Phase
+        </button>
+      </div>
     </PanelShell>
   );
 }
@@ -790,13 +792,7 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
                             <span style={{ fontSize:11,fontWeight:600,color:"#1e293b",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1 }}>{proj.name}</span>
                             {hasNotes && <span title="Has notes" style={{ fontSize:11,flexShrink:0 }}>📝</span>}
                             {proj.owner && <span style={{ fontSize:9,color:"#94a3b8",flexShrink:0,maxWidth:56,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{proj.owner}</span>}
-                            <button
-                              title="Delete project"
-                              onClick={e=>{e.stopPropagation();doDeleteProject(theme.id,proj.id);}}
-                              style={{ background:"none",border:"none",cursor:"pointer",color:"#e2e8f0",fontSize:13,padding:"2px 3px",flexShrink:0,lineHeight:1,marginLeft:2 }}
-                              onMouseEnter={e=>e.currentTarget.style.color="#dc2626"}
-                              onMouseLeave={e=>e.currentTarget.style.color="#e2e8f0"}
-                            >🗑</button>
+
                           </div>
 
                           {proj.collapsed ? (
@@ -887,21 +883,7 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
                                       onMouseDown={e=>{e.stopPropagation();handleDrag(e,theme.id,proj.id,phase,"right");}}
                                       onTouchStart={e=>{e.stopPropagation();handleDrag(e,theme.id,proj.id,phase,"right");}}
                                       style={{ position:"absolute",right:0,top:0,width: mobile?14:6,height:"100%",cursor:"ew-resize",zIndex:3,touchAction:"none" }}/>
-                                    {isSel && (
-                                      <div
-                                        onClick={e=>{e.stopPropagation();doDeletePhase(theme.id,proj.id,phase.id);}}
-                                        style={{
-                                          position:"absolute", top:-10, right:-8, zIndex:10,
-                                          width:18, height:18, borderRadius:"50%",
-                                          background:"#dc2626", color:"#fff",
-                                          display:"flex", alignItems:"center", justifyContent:"center",
-                                          fontSize:11, fontWeight:700, cursor:"pointer",
-                                          boxShadow:"0 1px 4px rgba(0,0,0,0.25)",
-                                          lineHeight:1,
-                                        }}
-                                        title="Delete phase"
-                                      >✕</div>
-                                    )}
+
                                   </div>
                                 );
                               })}
