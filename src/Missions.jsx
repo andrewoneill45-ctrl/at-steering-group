@@ -1,845 +1,552 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { ALL_MONTHS, TODAY_IDX, RAG, PALETTE, ZOOM_LEVELS, uid } from "./data.js";
 
-// ─── Shared style constants ───────────────────────────────────────────────────
-const IS = { background:"#fff", border:"1px solid #e2e8f0", borderRadius:6, color:"#374151", padding:"5px 9px", fontSize:11, fontFamily:"inherit", outline:"none" };
-const BS = bg => ({ background:bg+"18", border:`1px solid ${bg}66`, borderRadius:6, color:bg, cursor:"pointer", padding:"5px 12px", fontSize:11, fontFamily:"inherit", fontWeight:600 });
-const LS = { fontSize:9, letterSpacing:"0.13em", textTransform:"uppercase", color:"#94a3b8", fontWeight:700 };
-
+const IS  = { background:"#fff", border:"1px solid #e2e8f0", borderRadius:6, color:"#374151", padding:"5px 9px", fontSize:11, fontFamily:"inherit", outline:"none" };
+const BS  = bg => ({ background:bg+"18", border:`1px solid ${bg}66`, borderRadius:6, color:bg, cursor:"pointer", padding:"5px 12px", fontSize:11, fontFamily:"inherit", fontWeight:600 });
+const LS  = { fontSize:9, letterSpacing:"0.13em", textTransform:"uppercase", color:"#94a3b8", fontWeight:700 };
+const SUB_ROW_H = 48;
 const MISSION_COLORS = ["#6366f1","#0ea5e9","#059669","#d97706","#dc2626","#7c3aed","#0891b2","#65a30d"];
 
-// ─── Initial mission data ─────────────────────────────────────────────────────
 export const INITIAL_MISSIONS = [
   {
-    id: "m1",
-    name: "Mission North East",
-    subtitle: "Place-based school improvement",
-    color: "#6366f1",
-    rag: "G",
-    owner: "",
-    notes: "",
-    collapsed: false,
-    swimlanes: [
-      { id: "sl1", name: "DfE & Policy", color: "#6366f1", phases: [], milestones: [], textRows: [] },
-      { id: "sl2", name: "Schools & Trusts", color: "#0ea5e9", phases: [], milestones: [], textRows: [] },
-      { id: "sl3", name: "Local Authority", color: "#059669", phases: [], milestones: [], textRows: [] },
-      { id: "sl4", name: "Community & Partners", color: "#d97706", phases: [], milestones: [], textRows: [] },
+    id:"m1", name:"Mission North East", subtitle:"Place-based school improvement",
+    color:"#6366f1", rag:"G", owner:"", notes:"", collapsed:false, dependencies:[],
+    swimlanes:[
+      { id:"sl1", name:"DfE & Policy", color:"#6366f1", collapsed:false,
+        subrows:[
+          { id:"sr1", name:"Policy Design", phases:[], milestones:[] },
+          { id:"sr2", name:"Legislation",   phases:[], milestones:[] },
+        ]},
+      { id:"sl2", name:"Schools & Trusts", color:"#0ea5e9", collapsed:false,
+        subrows:[
+          { id:"sr3", name:"School Improvement", phases:[], milestones:[] },
+          { id:"sr4", name:"Trust Development",  phases:[], milestones:[] },
+        ]},
+      { id:"sl3", name:"Local Authority", color:"#059669", collapsed:false,
+        subrows:[
+          { id:"sr5", name:"Commissioning", phases:[], milestones:[] },
+          { id:"sr6", name:"SEND Pathways", phases:[], milestones:[] },
+        ]},
+      { id:"sl4", name:"Community & Partners", color:"#d97706", collapsed:false,
+        subrows:[
+          { id:"sr7", name:"Engagement", phases:[], milestones:[] },
+          { id:"sr8", name:"Evaluation",  phases:[], milestones:[] },
+        ]},
     ],
-    dependencies: [],
   }
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 function useWindowWidth() {
-  const [w, setW] = useState(window.innerWidth);
-  useEffect(() => {
-    const h = () => setW(window.innerWidth);
-    window.addEventListener("resize", h);
-    return () => window.removeEventListener("resize", h);
-  }, []);
+  const [w,setW]=useState(window.innerWidth);
+  useEffect(()=>{const h=()=>setW(window.innerWidth);window.addEventListener("resize",h);return()=>window.removeEventListener("resize",h);},[]);
   return w;
 }
 
-const RagDot = ({ rag, size=9 }) => (
-  <span style={{ display:"inline-block", width:size, height:size, borderRadius:"50%", background:RAG[rag].color, flexShrink:0 }}/>
-);
-const RagBadge = ({ rag, small }) => (
-  <span style={{
-    display:"inline-flex", alignItems:"center", gap:4,
-    background:RAG[rag].light, color:RAG[rag].text,
-    border:`1px solid ${RAG[rag].border}`,
-    borderRadius:20, padding: small ? "2px 8px" : "3px 10px",
-    fontSize: small ? 10 : 11, fontWeight:600, whiteSpace:"nowrap", flexShrink:0,
-  }}>
-    <span style={{ width:6, height:6, borderRadius:"50%", background:RAG[rag].color }}/>
-    {RAG[rag].label}
+const RagBadge=({rag,small})=>(
+  <span style={{display:"inline-flex",alignItems:"center",gap:4,background:RAG[rag].light,color:RAG[rag].text,border:`1px solid ${RAG[rag].border}`,borderRadius:20,padding:small?"2px 8px":"3px 10px",fontSize:small?10:11,fontWeight:600,whiteSpace:"nowrap",flexShrink:0}}>
+    <span style={{width:6,height:6,borderRadius:"50%",background:RAG[rag].color}}/>{RAG[rag].label}
   </span>
 );
 
-// ─── Panel Shell ──────────────────────────────────────────────────────────────
-function PanelShell({ title, subtitle, color, onClose, children }) {
-  const w = useWindowWidth();
-  const mobile = w < 640;
-  return (
-    <>
-      {mobile && <div onClick={onClose} style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:99 }}/>}
-      <div style={{
-        position:"fixed", right:0, top:0, bottom:0,
-        width: mobile ? "100%" : 340,
-        background:"#fff", borderLeft: mobile ? "none" : "1px solid #e2e8f0",
-        overflowY:"auto", zIndex:100,
-        boxShadow:"-4px 0 24px rgba(0,0,0,0.12)",
-        display:"flex", flexDirection:"column",
-      }}>
-        <div style={{ borderTop:`4px solid ${color||"#6366f1"}`, padding:"20px 22px 16px", borderBottom:"1px solid #f1f5f9", flexShrink:0 }}>
-          <div style={{ display:"flex",justifyContent:"space-between",alignItems:"flex-start" }}>
-            <div style={{ flex:1,paddingRight:10 }}>
-              <div style={{ fontSize:10,color:"#94a3b8",fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4 }}>{subtitle}</div>
-              <h2 style={{ margin:0,fontSize:15,fontWeight:700,color:"#0f172a",lineHeight:1.3 }}>{title}</h2>
-            </div>
-            <button onClick={onClose} style={{ background:"none",border:"none",color:"#94a3b8",cursor:"pointer",fontSize:26,padding:"0 2px",lineHeight:1,flexShrink:0,minWidth:44,minHeight:44,display:"flex",alignItems:"center",justifyContent:"center" }}>×</button>
+function PanelShell({title,subtitle,color,onClose,children}){
+  const mobile=useWindowWidth()<640;
+  return(<>
+    {mobile&&<div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:99}}/>}
+    <div style={{position:"fixed",right:0,top:0,bottom:0,width:mobile?"100%":340,background:"#fff",borderLeft:mobile?"none":"1px solid #e2e8f0",overflowY:"auto",zIndex:100,boxShadow:"-4px 0 24px rgba(0,0,0,0.12)",display:"flex",flexDirection:"column"}}>
+      <div style={{borderTop:`4px solid ${color||"#6366f1"}`,padding:"20px 22px 16px",borderBottom:"1px solid #f1f5f9",flexShrink:0}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div style={{flex:1,paddingRight:10}}>
+            <div style={{...LS,marginBottom:4}}>{subtitle}</div>
+            <h2 style={{margin:0,fontSize:15,fontWeight:700,color:"#0f172a",lineHeight:1.3}}>{title}</h2>
           </div>
+          <button onClick={onClose} style={{background:"none",border:"none",color:"#94a3b8",cursor:"pointer",fontSize:26,padding:"0 2px",lineHeight:1,flexShrink:0,minWidth:44,minHeight:44,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
         </div>
-        <div style={{ padding:"18px 22px",flex:1 }}>{children}</div>
       </div>
-    </>
-  );
-}
-
-// ─── Field components ─────────────────────────────────────────────────────────
-function Field({ label, children }) {
-  return (
-    <div style={{ marginBottom:14 }}>
-      <div style={LS}>{label}</div>
-      <div style={{ marginTop:5 }}>{children}</div>
+      <div style={{padding:"18px 22px",flex:1}}>{children}</div>
     </div>
-  );
-}
-function TextField({ label, value, onChange, placeholder="", rows=1 }) {
-  return (
-    <Field label={label}>
-      {rows > 1
-        ? <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows}
-            style={{ ...IS,width:"100%",resize:"vertical",lineHeight:1.5 }}/>
-        : <input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
-            style={{ ...IS,width:"100%" }}/>
-      }
-    </Field>
-  );
-}
-function RagSelector({ value, onChange }) {
-  return (
-    <Field label="RAG Status">
-      <div style={{ display:"flex",gap:6 }}>
-        {["G","A","R"].map(k => (
-          <button key={k} onClick={() => onChange(k)} style={{
-            flex:1, padding:"8px 4px", borderRadius:8, cursor:"pointer",
-            border: value===k ? `2px solid ${RAG[k].color}` : "1px solid #e2e8f0",
-            background: value===k ? RAG[k].light : "#fff",
-            color: value===k ? RAG[k].text : "#94a3b8",
-            fontFamily:"inherit", fontSize:11, fontWeight:value===k?"700":"400",
-          }}>{RAG[k].label}</button>
-        ))}
-      </div>
-    </Field>
-  );
-}
-function ColorPicker({ value, onChange, diamond=false }) {
-  return (
-    <Field label="Colour">
-      <div style={{ display:"flex",gap:5,flexWrap:"wrap" }}>
-        {PALETTE.map(c => (
-          <div key={c} onClick={() => onChange(c)}
-            style={{ width:22,height:22,borderRadius:diamond?0:4,transform:diamond?"rotate(45deg)":undefined,
-              background:c,cursor:"pointer",border:value===c?"3px solid #0f172a":"2px solid transparent" }}/>
-        ))}
-      </div>
-    </Field>
-  );
+  </>);
 }
 
-// ─── Dependency drawing ───────────────────────────────────────────────────────
-function DependencyLines({ missions, activeMissionId, COL, ROW, LBL, zoomMonths }) {
-  const mission = missions.find(m => m.id === activeMissionId);
-  if (!mission) return null;
-
-  const deps = mission.dependencies || [];
-  if (!deps.length) return null;
-
-  // Build a lookup: phaseId → { swimlaneIndex, phase }
-  const lookup = {};
-  mission.swimlanes.forEach((sl, slIdx) => {
-    (sl.phases || []).forEach(ph => { lookup[ph.id] = { slIdx, ph }; });
-    (sl.milestones || []).forEach(ms => { lookup[ms.id] = { slIdx, ms, isMilestone:true }; });
-  });
-
-  const lines = deps.map(dep => {
-    const from = lookup[dep.fromId];
-    const to   = lookup[dep.toId];
-    if (!from || !to) return null;
-
-    let x1, y1, x2, y2;
-    if (from.isMilestone) {
-      x1 = LBL + from.ms.month * COL + COL / 2;
-      y1 = from.slIdx * ROW + ROW / 2;
-    } else {
-      const end = Math.min(from.ph.start + from.ph.duration, zoomMonths);
-      x1 = LBL + end * COL;
-      y1 = from.slIdx * ROW + ROW / 2;
+function FL({children}){return <div style={{...LS,marginBottom:5}}>{children}</div>;}
+function TF({label,value,onChange,placeholder="",rows=1,bold=false}){
+  return(<div style={{marginBottom:14}}><FL>{label}</FL>
+    {rows>1
+      ?<textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows} style={{...IS,width:"100%",resize:"vertical",lineHeight:1.5}}/>
+      :<input value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={{...IS,width:"100%",fontWeight:bold?600:"inherit"}}/>
     }
-    if (to.isMilestone) {
-      x2 = LBL + to.ms.month * COL + COL / 2;
-      y2 = to.slIdx * ROW + ROW / 2;
-    } else {
-      x2 = LBL + to.ph.start * COL;
-      y2 = to.slIdx * ROW + ROW / 2;
-    }
+  </div>);
+}
+function RagSel({value,onChange}){
+  return(<div style={{marginBottom:14}}><FL>RAG Status</FL>
+    <div style={{display:"flex",gap:6}}>
+      {["G","A","R"].map(k=>(
+        <button key={k} onClick={()=>onChange(k)} style={{flex:1,padding:"8px 4px",borderRadius:8,cursor:"pointer",border:value===k?`2px solid ${RAG[k].color}`:"1px solid #e2e8f0",background:value===k?RAG[k].light:"#fff",color:value===k?RAG[k].text:"#94a3b8",fontFamily:"inherit",fontSize:11,fontWeight:value===k?"700":"400"}}>{RAG[k].label}</button>
+      ))}
+    </div>
+  </div>);
+}
+function ColPick({value,onChange,diamond=false}){
+  return(<div style={{marginBottom:14}}><FL>Colour</FL>
+    <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:2}}>
+      {PALETTE.map(c=>(
+        <div key={c} onClick={()=>onChange(c)} style={{width:22,height:22,background:c,cursor:"pointer",borderRadius:diamond?0:4,transform:diamond?"rotate(45deg)":undefined,border:value===c?"3px solid #0f172a":"2px solid transparent"}}/>
+      ))}
+    </div>
+  </div>);
+}
 
-    const mx = (x1 + x2) / 2;
-    return (
-      <g key={dep.id}>
-        <path d={`M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`}
-          fill="none" stroke={dep.color||"#94a3b8"} strokeWidth={1.5}
-          strokeDasharray="4 3" markerEnd={`url(#arrow-${dep.id})`} opacity={0.7}/>
-        <defs>
-          <marker id={`arrow-${dep.id}`} markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-            <path d="M0,0 L0,6 L8,3 z" fill={dep.color||"#94a3b8"} opacity={0.7}/>
-          </marker>
-        </defs>
-      </g>
-    );
+function DepLines({mission,rowMap,COL,LBL}){
+  if(!(mission?.dependencies?.length)) return null;
+  const lines=(mission.dependencies||[]).map(dep=>{
+    const f=rowMap[dep.fromId],t=rowMap[dep.toId];
+    if(!f||!t) return null;
+    const x1=LBL+f.endCol*COL,y1=f.rowTop+SUB_ROW_H/2;
+    const x2=LBL+t.startCol*COL,y2=t.rowTop+SUB_ROW_H/2;
+    const mx=(x1+x2)/2,col=dep.color||"#94a3b8";
+    return(<g key={dep.id}>
+      <defs><marker id={`a-${dep.id}`} markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill={col} opacity={0.7}/></marker></defs>
+      <path d={`M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`} fill="none" stroke={col} strokeWidth={1.5} strokeDasharray="4 3" markerEnd={`url(#a-${dep.id})`} opacity={0.7}/>
+    </g>);
   }).filter(Boolean);
-
-  return (
-    <svg style={{ position:"absolute", inset:0, pointerEvents:"none", zIndex:20 }}
-      width="100%" height="100%">
-      {lines}
-    </svg>
-  );
+  if(!lines.length) return null;
+  return(<svg style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:20,overflow:"visible"}} width="100%" height="100%">{lines}</svg>);
 }
 
-// ─── Main Missions Component ──────────────────────────────────────────────────
-export default function Missions({ missions, setMissions, syncStatus }) {
-  const w = useWindowWidth();
-  const mobile  = w < 640;
-  const tablet  = w < 900;
+export default function Missions({missions,setMissions,syncStatus}){
+  const w=useWindowWidth(),mobile=w<640,tablet=w<900;
+  const [zoomIdx,setZoomIdx]=useState(0);
+  const [sel,setSel]=useState(null);
+  const [addingPhase,setAddingPhase]=useState(null);
+  const [newPhase,setNewPhase]=useState({name:"",start:0,duration:3,rag:"G",color:"#6366f1",notes:""});
+  const [addingMs,setAddingMs]=useState(null);
+  const [newMs,setNewMs]=useState({name:"",month:0,color:"#f59e0b",notes:""});
+  const [addingSR,setAddingSR]=useState(null);
+  const [newSRName,setNewSRName]=useState("");
+  const [addingSL,setAddingSL]=useState(null);
+  const [newSLName,setNewSLName]=useState("");
+  const [addingMission,setAddingMission]=useState(false);
+  const [newMissionName,setNewMissionName]=useState("");
+  const [addingDep,setAddingDep]=useState(null);
 
-  const [zoomIdx, setZoomIdx]   = useState(0);
-  const [sel, setSel]           = useState(null); // { type, missionId, swimlaneId?, itemId? }
-  const [addingPhase, setAddingPhase]         = useState(null); // { missionId, swimlaneId }
-  const [newPhase, setNewPhase]               = useState({ name:"", start:0, duration:3, rag:"G", color:"#6366f1", notes:"" });
-  const [addingMilestone, setAddingMilestone] = useState(null);
-  const [newMilestone, setNewMilestone]       = useState({ name:"", month:0, color:"#f59e0b", notes:"" });
-  const [addingText, setAddingText]           = useState(null);
-  const [newText, setNewText]                 = useState("");
-  const [addingDep, setAddingDep]             = useState(null); // { missionId, fromId }
-  const [addingMission, setAddingMission]     = useState(false);
-  const [newMissionName, setNewMissionName]   = useState("");
-  const [addingSwimlane, setAddingSwimlane]   = useState(null); // missionId
-  const [newSwimlaneName, setNewSwimlaneName] = useState("");
+  const zoom=ZOOM_LEVELS[zoomIdx],MONTHS=ALL_MONTHS.slice(0,zoom.months),COL=zoom.col;
+  const LBL=mobile?140:tablet?180:240;
 
-  const zoom   = ZOOM_LEVELS[zoomIdx];
-  const MONTHS = ALL_MONTHS.slice(0, zoom.months);
-  const COL    = zoom.col;
-  const ROW    = 44;
-  const LBL    = mobile ? 140 : tablet ? 180 : 220;
+  const updM=(mid,fn)=>setMissions(p=>p.map(m=>m.id!==mid?m:fn(m)));
+  const updSL=(mid,slid,fn)=>updM(mid,m=>({...m,swimlanes:m.swimlanes.map(sl=>sl.id!==slid?sl:fn(sl))}));
+  const updSR=(mid,slid,srid,fn)=>updSL(mid,slid,sl=>({...sl,subrows:sl.subrows.map(sr=>sr.id!==srid?sr:fn(sr))}));
 
-  // ── Updater helpers ──
-  const updateMission = (missionId, fn) =>
-    setMissions(prev => prev.map(m => m.id !== missionId ? m : fn(m)));
-
-  const updateSwimlane = (missionId, swimlaneId, fn) =>
-    updateMission(missionId, m => ({
-      ...m, swimlanes: m.swimlanes.map(sl => sl.id !== swimlaneId ? sl : fn(sl))
-    }));
-
-  // ── Add mission ──
-  const doAddMission = () => {
-    if (!newMissionName.trim()) return;
-    const idx = missions.length % MISSION_COLORS.length;
-    setMissions(prev => [...prev, {
-      id: uid(), name: newMissionName.trim(), subtitle: "",
-      color: MISSION_COLORS[idx], rag:"G", owner:"", notes:"",
-      collapsed:false, swimlanes:[], dependencies:[],
-    }]);
-    setNewMissionName(""); setAddingMission(false);
+  const doAddMission=()=>{
+    if(!newMissionName.trim()) return;
+    const idx=missions.length%MISSION_COLORS.length;
+    setMissions(p=>[...p,{id:uid(),name:newMissionName.trim(),subtitle:"",color:MISSION_COLORS[idx],rag:"G",owner:"",notes:"",collapsed:false,dependencies:[],swimlanes:[]}]);
+    setNewMissionName("");setAddingMission(false);
   };
-
-  // ── Add swimlane ──
-  const doAddSwimlane = (missionId) => {
-    if (!newSwimlaneName.trim()) return;
-    const mission = missions.find(m => m.id === missionId);
-    const idx = (mission?.swimlanes?.length || 0) % MISSION_COLORS.length;
-    updateMission(missionId, m => ({
-      ...m, swimlanes: [...m.swimlanes, {
-        id: uid(), name: newSwimlaneName.trim(),
-        color: MISSION_COLORS[idx], phases:[], milestones:[], textRows:[],
-      }]
-    }));
-    setNewSwimlaneName(""); setAddingSwimlane(null);
+  const doAddSL=(mid)=>{
+    if(!newSLName.trim()) return;
+    const m=missions.find(x=>x.id===mid);
+    const idx=(m?.swimlanes?.length||0)%MISSION_COLORS.length;
+    updM(mid,m=>({...m,swimlanes:[...m.swimlanes,{id:uid(),name:newSLName.trim(),color:MISSION_COLORS[idx],collapsed:false,subrows:[]}]}));
+    setNewSLName("");setAddingSL(null);
   };
-
-  // ── Add phase ──
-  const doAddPhase = (missionId, swimlaneId) => {
-    if (!newPhase.name.trim()) return;
-    updateSwimlane(missionId, swimlaneId, sl => ({
-      ...sl, phases: [...sl.phases, { ...newPhase, id: uid() }]
-    }));
-    setNewPhase({ name:"", start:0, duration:3, rag:"G", color:"#6366f1", notes:"" });
-    setAddingPhase(null);
+  const doAddSR=(mid,slid)=>{
+    if(!newSRName.trim()) return;
+    updSL(mid,slid,sl=>({...sl,subrows:[...sl.subrows,{id:uid(),name:newSRName.trim(),phases:[],milestones:[]}]}));
+    setNewSRName("");setAddingSR(null);
   };
-
-  // ── Add milestone ──
-  const doAddMilestone = (missionId, swimlaneId) => {
-    if (!newMilestone.name.trim()) return;
-    updateSwimlane(missionId, swimlaneId, sl => ({
-      ...sl, milestones: [...sl.milestones, { ...newMilestone, id: uid() }]
-    }));
-    setNewMilestone({ name:"", month:0, color:"#f59e0b", notes:"" });
-    setAddingMilestone(null);
+  const doAddPhase=(mid,slid,srid)=>{
+    if(!newPhase.name.trim()) return;
+    updSR(mid,slid,srid,sr=>({...sr,phases:[...sr.phases,{...newPhase,id:uid()}]}));
+    setNewPhase({name:"",start:0,duration:3,rag:"G",color:"#6366f1",notes:""});setAddingPhase(null);
   };
-
-  // ── Add text row ──
-  const doAddText = (missionId, swimlaneId) => {
-    if (!newText.trim()) return;
-    updateSwimlane(missionId, swimlaneId, sl => ({
-      ...sl, textRows: [...(sl.textRows||[]), { id: uid(), text: newText.trim(), color:"#64748b" }]
-    }));
-    setNewText(""); setAddingText(null);
+  const doAddMs=(mid,slid,srid)=>{
+    if(!newMs.name.trim()) return;
+    updSR(mid,slid,srid,sr=>({...sr,milestones:[...(sr.milestones||[]),{...newMs,id:uid()}]}));
+    setNewMs({name:"",month:0,color:"#f59e0b",notes:""});setAddingMs(null);
   };
-
-  // ── Add dependency ──
-  const doAddDep = (missionId, toId) => {
-    if (!addingDep || addingDep.fromId === toId) { setAddingDep(null); return; }
-    updateMission(missionId, m => ({
-      ...m, dependencies: [...(m.dependencies||[]), {
-        id: uid(), fromId: addingDep.fromId, toId, color:"#94a3b8"
-      }]
-    }));
+  const doAddDep=(mid,toId)=>{
+    if(!addingDep||addingDep.fromId===toId){setAddingDep(null);return;}
+    updM(mid,m=>({...m,dependencies:[...(m.dependencies||[]),{id:uid(),fromId:addingDep.fromId,toId,color:"#94a3b8"}]}));
     setAddingDep(null);
   };
-
-  // ── Generic field update ──
-  const handleUpdate = (type, missionId, swimlaneId, itemId, field, value) => {
-    if (type === "mission") {
-      updateMission(missionId, m => ({ ...m, [field]: value }));
-    } else if (type === "swimlane") {
-      updateSwimlane(missionId, swimlaneId, sl => ({ ...sl, [field]: value }));
-    } else if (type === "phase") {
-      updateSwimlane(missionId, swimlaneId, sl => ({
-        ...sl, phases: sl.phases.map(ph => ph.id !== itemId ? ph : { ...ph, [field]: value })
-      }));
-    } else if (type === "milestone") {
-      updateSwimlane(missionId, swimlaneId, sl => ({
-        ...sl, milestones: sl.milestones.map(ms => ms.id !== itemId ? ms : { ...ms, [field]: value })
-      }));
-    } else if (type === "textrow") {
-      updateSwimlane(missionId, swimlaneId, sl => ({
-        ...sl, textRows: (sl.textRows||[]).map(tr => tr.id !== itemId ? tr : { ...tr, [field]: value })
-      }));
-    } else if (type === "dep") {
-      updateMission(missionId, m => ({
-        ...m, dependencies: (m.dependencies||[]).map(d => d.id !== itemId ? d : { ...d, [field]: value })
-      }));
-    }
+  const handleUpdate=(type,ids,field,value)=>{
+    const{mid,slid,srid,itemId}=ids;
+    if(type==="mission")   updM(mid,m=>({...m,[field]:value}));
+    if(type==="swimlane")  updSL(mid,slid,sl=>({...sl,[field]:value}));
+    if(type==="subrow")    updSR(mid,slid,srid,sr=>({...sr,[field]:value}));
+    if(type==="phase")     updSR(mid,slid,srid,sr=>({...sr,phases:sr.phases.map(p=>p.id!==itemId?p:{...p,[field]:value})}));
+    if(type==="milestone") updSR(mid,slid,srid,sr=>({...sr,milestones:(sr.milestones||[]).map(ms=>ms.id!==itemId?ms:{...ms,[field]:value})}));
+    if(type==="dep")       updM(mid,m=>({...m,dependencies:(m.dependencies||[]).map(d=>d.id!==itemId?d:{...d,[field]:value})}));
   };
-
-  // ── Delete helpers ──
-  const doDelete = (type, missionId, swimlaneId, itemId) => {
-    if (type === "mission") {
-      if (!window.confirm("Delete this mission and all its data?")) return;
-      setMissions(prev => prev.filter(m => m.id !== missionId));
-    } else if (type === "swimlane") {
-      if (!window.confirm("Delete this swimlane and all its phases?")) return;
-      updateMission(missionId, m => ({ ...m, swimlanes: m.swimlanes.filter(sl => sl.id !== swimlaneId) }));
-    } else if (type === "phase") {
-      updateSwimlane(missionId, swimlaneId, sl => ({ ...sl, phases: sl.phases.filter(ph => ph.id !== itemId) }));
-    } else if (type === "milestone") {
-      updateSwimlane(missionId, swimlaneId, sl => ({ ...sl, milestones: sl.milestones.filter(ms => ms.id !== itemId) }));
-    } else if (type === "textrow") {
-      updateSwimlane(missionId, swimlaneId, sl => ({ ...sl, textRows: (sl.textRows||[]).filter(tr => tr.id !== itemId) }));
-    } else if (type === "dep") {
-      updateMission(missionId, m => ({ ...m, dependencies: (m.dependencies||[]).filter(d => d.id !== itemId) }));
-    }
+  const doDelete=(type,ids)=>{
+    const{mid,slid,srid,itemId}=ids;
+    if(type==="mission"){if(!window.confirm("Delete this mission?"))return;setMissions(p=>p.filter(m=>m.id!==mid));}
+    if(type==="swimlane"){if(!window.confirm("Delete swimlane and all sub-rows?"))return;updM(mid,m=>({...m,swimlanes:m.swimlanes.filter(sl=>sl.id!==slid)}));}
+    if(type==="subrow"){if(!window.confirm("Delete this sub-row?"))return;updSL(mid,slid,sl=>({...sl,subrows:sl.subrows.filter(sr=>sr.id!==srid)}));}
+    if(type==="phase")     updSR(mid,slid,srid,sr=>({...sr,phases:sr.phases.filter(p=>p.id!==itemId)}));
+    if(type==="milestone") updSR(mid,slid,srid,sr=>({...sr,milestones:(sr.milestones||[]).filter(ms=>ms.id!==itemId)}));
+    if(type==="dep")       updM(mid,m=>({...m,dependencies:(m.dependencies||[]).filter(d=>d.id!==itemId)}));
     setSel(null);
   };
-
-  // ── Drag phases ──
-  const handleDrag = (e, missionId, swimlaneId, phase, mode) => {
-    e.preventDefault(); e.stopPropagation();
-    const orig = { start: phase.start, duration: phase.duration };
-    const sx = e.touches ? e.touches[0].clientX : e.clientX;
-    const onMove = ev => {
-      const cx = ev.touches ? ev.touches[0].clientX : ev.clientX;
-      const dm = Math.round((cx - sx) / COL);
-      updateSwimlane(missionId, swimlaneId, sl => ({
-        ...sl, phases: sl.phases.map(ph => {
-          if (ph.id !== phase.id) return ph;
-          if (mode === "move") return { ...ph, start: Math.max(0, orig.start + dm) };
-          if (mode === "left")  return { ...ph, start: Math.max(0, orig.start + dm), duration: Math.max(1, orig.duration - dm) };
-          if (mode === "right") return { ...ph, duration: Math.max(1, orig.duration + dm) };
-          return ph;
-        })
-      }));
+  const handleDrag=(e,mid,slid,srid,phase,mode)=>{
+    e.preventDefault();e.stopPropagation();
+    const orig={start:phase.start,duration:phase.duration};
+    const sx=e.touches?e.touches[0].clientX:e.clientX;
+    const onMove=ev=>{
+      const cx=ev.touches?ev.touches[0].clientX:ev.clientX;
+      const dm=Math.round((cx-sx)/COL);
+      updSR(mid,slid,srid,sr=>({...sr,phases:sr.phases.map(p=>{
+        if(p.id!==phase.id) return p;
+        if(mode==="move")  return{...p,start:Math.max(0,orig.start+dm)};
+        if(mode==="left")  return{...p,start:Math.max(0,orig.start+dm),duration:Math.max(1,orig.duration-dm)};
+        if(mode==="right") return{...p,duration:Math.max(1,orig.duration+dm)};
+        return p;
+      })}));
     };
-    const onUp = () => {
-      window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp);
-      window.removeEventListener("touchmove", onMove); window.removeEventListener("touchend", onUp);
+    const onUp=()=>{
+      window.removeEventListener("mousemove",onMove);window.removeEventListener("mouseup",onUp);
+      window.removeEventListener("touchmove",onMove);window.removeEventListener("touchend",onUp);
     };
-    window.addEventListener("mousemove", onMove); window.addEventListener("mouseup", onUp);
-    window.addEventListener("touchmove", onMove, { passive:false }); window.addEventListener("touchend", onUp);
+    window.addEventListener("mousemove",onMove);window.addEventListener("mouseup",onUp);
+    window.addEventListener("touchmove",onMove,{passive:false});window.addEventListener("touchend",onUp);
   };
 
-  // ── Render detail panel ──
-  const renderPanel = () => {
-    if (!sel) return null;
-    const mission = missions.find(m => m.id === sel.missionId);
-    if (!mission) return null;
+  const buildRowMap=(mission)=>{
+    const map={};let rowTop=28;
+    mission.swimlanes.forEach(sl=>{
+      rowTop+=36;
+      if(!sl.collapsed){
+        sl.subrows.forEach(sr=>{
+          (sr.phases||[]).forEach(ph=>{map[ph.id]={rowTop,endCol:ph.start+ph.duration,startCol:ph.start};});
+          (sr.milestones||[]).forEach(ms=>{map[ms.id]={rowTop,endCol:ms.month+1,startCol:ms.month};});
+          rowTop+=SUB_ROW_H;
+        });
+        rowTop+=30;
+      }
+    });
+    return map;
+  };
 
-    if (sel.type === "mission") {
-      return (
-        <PanelShell title={mission.name} subtitle="Mission" color={mission.color} onClose={() => setSel(null)}>
-          <TextField label="Mission Name" value={mission.name} onChange={v => handleUpdate("mission", sel.missionId, null, null, "name", v)} />
-          <TextField label="Subtitle" value={mission.subtitle||""} onChange={v => handleUpdate("mission", sel.missionId, null, null, "subtitle", v)} />
-          <TextField label="Owner" value={mission.owner} onChange={v => handleUpdate("mission", sel.missionId, null, null, "owner", v)} placeholder="Enter name..." />
-          <RagSelector value={mission.rag} onChange={v => handleUpdate("mission", sel.missionId, null, null, "rag", v)} />
-          <TextField label="Notes" value={mission.notes} onChange={v => handleUpdate("mission", sel.missionId, null, null, "notes", v)} rows={4} placeholder="Mission notes..." />
-          <ColorPicker value={mission.color} onChange={v => handleUpdate("mission", sel.missionId, null, null, "color", v)} />
-          {/* Dependencies list */}
-          {(mission.dependencies||[]).length > 0 && (
-            <Field label="Dependencies">
-              {(mission.dependencies||[]).map(dep => {
-                const allItems = mission.swimlanes.flatMap(sl => [
-                  ...(sl.phases||[]).map(ph => ({ id:ph.id, name:ph.name, lane:sl.name })),
-                  ...(sl.milestones||[]).map(ms => ({ id:ms.id, name:ms.name, lane:sl.name })),
-                ]);
-                const from = allItems.find(x => x.id === dep.fromId);
-                const to   = allItems.find(x => x.id === dep.toId);
-                return (
-                  <div key={dep.id} style={{ display:"flex", alignItems:"center", gap:6, padding:"5px 0", borderBottom:"1px solid #f1f5f9", fontSize:11 }}>
-                    <span style={{ flex:1, color:"#374151" }}>{from?.name||"?"} → {to?.name||"?"}</span>
-                    <button onClick={() => doDelete("dep", sel.missionId, null, dep.id)} style={{ background:"none",border:"none",color:"#dc2626",cursor:"pointer",fontSize:13 }}>×</button>
-                  </div>
-                );
-              })}
-            </Field>
-          )}
-          <div style={{ marginTop:8, paddingTop:16, borderTop:"1px solid #f1f5f9" }}>
-            <button onClick={() => doDelete("mission", sel.missionId)} style={{ ...BS("#dc2626"), width:"100%", padding:"8px" }}>
-              🗑 Delete Mission
-            </button>
+  const renderPanel=()=>{
+    if(!sel) return null;
+    const mission=missions.find(m=>m.id===sel.mid);if(!mission) return null;
+    const sl=mission.swimlanes.find(s=>s.id===sel.slid);
+    const sr=sl?.subrows?.find(s=>s.id===sel.srid);
+
+    if(sel.type==="mission") return(
+      <PanelShell title={mission.name} subtitle="Mission" color={mission.color} onClose={()=>setSel(null)}>
+        <TF label="Mission Name" value={mission.name} onChange={v=>handleUpdate("mission",{mid:sel.mid},"name",v)} bold/>
+        <TF label="Subtitle" value={mission.subtitle||""} onChange={v=>handleUpdate("mission",{mid:sel.mid},"subtitle",v)}/>
+        <TF label="Owner" value={mission.owner} onChange={v=>handleUpdate("mission",{mid:sel.mid},"owner",v)} placeholder="Enter name…"/>
+        <RagSel value={mission.rag} onChange={v=>handleUpdate("mission",{mid:sel.mid},"rag",v)}/>
+        <TF label="Notes" value={mission.notes} onChange={v=>handleUpdate("mission",{mid:sel.mid},"notes",v)} rows={4}/>
+        <ColPick value={mission.color} onChange={v=>handleUpdate("mission",{mid:sel.mid},"color",v)}/>
+        {(mission.dependencies||[]).length>0&&(
+          <div style={{marginBottom:14}}><FL>Dependencies</FL>
+            {(mission.dependencies||[]).map(dep=>{
+              const all=mission.swimlanes.flatMap(sl=>(sl.subrows||[]).flatMap(sr=>[...(sr.phases||[]).map(p=>({id:p.id,name:p.name})),...(sr.milestones||[]).map(ms=>({id:ms.id,name:ms.name}))]));
+              const f=all.find(x=>x.id===dep.fromId),t=all.find(x=>x.id===dep.toId);
+              return(<div key={dep.id} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 0",borderBottom:"1px solid #f1f5f9",fontSize:11}}>
+                <span style={{flex:1,color:"#374151"}}>{f?.name||"?"} → {t?.name||"?"}</span>
+                <button onClick={()=>doDelete("dep",{mid:sel.mid,itemId:dep.id})} style={{background:"none",border:"none",color:"#dc2626",cursor:"pointer",fontSize:14}}>×</button>
+              </div>);
+            })}
           </div>
-        </PanelShell>
-      );
-    }
+        )}
+        <div style={{paddingTop:16,borderTop:"1px solid #f1f5f9"}}>
+          <button onClick={()=>doDelete("mission",{mid:sel.mid})} style={{...BS("#dc2626"),width:"100%",padding:"8px"}}>🗑 Delete Mission</button>
+        </div>
+      </PanelShell>
+    );
 
-    const swimlane = mission.swimlanes.find(sl => sl.id === sel.swimlaneId);
+    if(sel.type==="swimlane"&&sl) return(
+      <PanelShell title={sl.name} subtitle={mission.name} color={sl.color} onClose={()=>setSel(null)}>
+        <TF label="Swimlane Name" value={sl.name} onChange={v=>handleUpdate("swimlane",{mid:sel.mid,slid:sel.slid},"name",v)} bold/>
+        <ColPick value={sl.color} onChange={v=>handleUpdate("swimlane",{mid:sel.mid,slid:sel.slid},"color",v)}/>
+        <div style={{paddingTop:16,borderTop:"1px solid #f1f5f9"}}>
+          <button onClick={()=>doDelete("swimlane",{mid:sel.mid,slid:sel.slid})} style={{...BS("#dc2626"),width:"100%",padding:"8px"}}>🗑 Delete Swimlane</button>
+        </div>
+      </PanelShell>
+    );
 
-    if (sel.type === "swimlane" && swimlane) {
-      return (
-        <PanelShell title={swimlane.name} subtitle={mission.name} color={swimlane.color} onClose={() => setSel(null)}>
-          <TextField label="Swimlane Name" value={swimlane.name} onChange={v => handleUpdate("swimlane", sel.missionId, sel.swimlaneId, null, "name", v)} />
-          <ColorPicker value={swimlane.color} onChange={v => handleUpdate("swimlane", sel.missionId, sel.swimlaneId, null, "color", v)} />
-          <div style={{ marginTop:8, paddingTop:16, borderTop:"1px solid #f1f5f9" }}>
-            <button onClick={() => doDelete("swimlane", sel.missionId, sel.swimlaneId)} style={{ ...BS("#dc2626"), width:"100%", padding:"8px" }}>
-              🗑 Delete Swimlane
-            </button>
-          </div>
-        </PanelShell>
-      );
-    }
+    if(sel.type==="subrow"&&sr) return(
+      <PanelShell title={sr.name} subtitle={`${mission.name} / ${sl.name}`} color={sl.color} onClose={()=>setSel(null)}>
+        <TF label="Sub-row Name" value={sr.name} onChange={v=>handleUpdate("subrow",{mid:sel.mid,slid:sel.slid,srid:sel.srid},"name",v)} bold/>
+        <div style={{paddingTop:16,borderTop:"1px solid #f1f5f9"}}>
+          <button onClick={()=>doDelete("subrow",{mid:sel.mid,slid:sel.slid,srid:sel.srid})} style={{...BS("#dc2626"),width:"100%",padding:"8px"}}>🗑 Delete Sub-row</button>
+        </div>
+      </PanelShell>
+    );
 
-    if (sel.type === "phase" && swimlane) {
-      const phase = swimlane.phases.find(ph => ph.id === sel.itemId);
-      if (!phase) return null;
-      return (
-        <PanelShell title={phase.name} subtitle={`${mission.name} / ${swimlane.name}`} color={swimlane.color} onClose={() => setSel(null)}>
-          <TextField label="Phase Name" value={phase.name} onChange={v => handleUpdate("phase", sel.missionId, sel.swimlaneId, sel.itemId, "name", v)} />
-          <RagSelector value={phase.rag} onChange={v => handleUpdate("phase", sel.missionId, sel.swimlaneId, sel.itemId, "rag", v)} />
-          <ColorPicker value={phase.color} onChange={v => handleUpdate("phase", sel.missionId, sel.swimlaneId, sel.itemId, "color", v)} />
-          <Field label="Start Month">
-            <select value={phase.start} onChange={e => handleUpdate("phase", sel.missionId, sel.swimlaneId, sel.itemId, "start", +e.target.value)} style={{ ...IS,width:"100%" }}>
-              {ALL_MONTHS.map((m,i) => <option key={i} value={i}>{m}</option>)}
+    if(sel.type==="phase"&&sr){
+      const phase=sr.phases.find(p=>p.id===sel.itemId);if(!phase) return null;
+      return(
+        <PanelShell title={phase.name} subtitle={`${mission.name} / ${sl.name} / ${sr.name}`} color={sl.color} onClose={()=>setSel(null)}>
+          <TF label="Phase Name" value={phase.name} onChange={v=>handleUpdate("phase",{mid:sel.mid,slid:sel.slid,srid:sel.srid,itemId:sel.itemId},"name",v)} bold/>
+          <RagSel value={phase.rag} onChange={v=>handleUpdate("phase",{mid:sel.mid,slid:sel.slid,srid:sel.srid,itemId:sel.itemId},"rag",v)}/>
+          <ColPick value={phase.color} onChange={v=>handleUpdate("phase",{mid:sel.mid,slid:sel.slid,srid:sel.srid,itemId:sel.itemId},"color",v)}/>
+          <div style={{marginBottom:14}}><FL>Start Month</FL>
+            <select value={phase.start} onChange={e=>handleUpdate("phase",{mid:sel.mid,slid:sel.slid,srid:sel.srid,itemId:sel.itemId},"start",+e.target.value)} style={{...IS,width:"100%"}}>
+              {ALL_MONTHS.map((m,i)=><option key={i} value={i}>{m}</option>)}
             </select>
-          </Field>
-          <Field label="Duration (months)">
-            <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-              <input type="range" min={1} max={36} value={phase.duration}
-                onChange={e => handleUpdate("phase", sel.missionId, sel.swimlaneId, sel.itemId, "duration", +e.target.value)}
-                style={{ flex:1 }}/>
-              <span style={{ fontSize:13, fontWeight:600, color:"#374151", minWidth:32 }}>{phase.duration}mo</span>
+          </div>
+          <div style={{marginBottom:14}}><FL>Duration</FL>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <input type="range" min={1} max={36} value={phase.duration} onChange={e=>handleUpdate("phase",{mid:sel.mid,slid:sel.slid,srid:sel.srid,itemId:sel.itemId},"duration",+e.target.value)} style={{flex:1}}/>
+              <span style={{fontSize:13,fontWeight:600,color:"#374151",minWidth:32}}>{phase.duration}mo</span>
             </div>
-          </Field>
-          <TextField label="Notes" value={phase.notes} onChange={v => handleUpdate("phase", sel.missionId, sel.swimlaneId, sel.itemId, "notes", v)} rows={3} />
-          {/* Add dependency from this phase */}
-          <Field label="Add Dependency">
-            <button
-              onClick={() => { setAddingDep({ missionId: sel.missionId, fromId: sel.itemId }); setSel(null); }}
-              style={{ ...BS("#6366f1"), width:"100%" }}>
-              ⬡ Draw arrow from this phase
-            </button>
-            {addingDep?.fromId === sel.itemId && (
-              <div style={{ fontSize:11, color:"#6366f1", marginTop:6 }}>Now click a phase or milestone to connect to…</div>
-            )}
-          </Field>
-          <div style={{ marginTop:8, paddingTop:16, borderTop:"1px solid #f1f5f9" }}>
-            <button onClick={() => doDelete("phase", sel.missionId, sel.swimlaneId, sel.itemId)} style={{ ...BS("#dc2626"), width:"100%", padding:"8px" }}>
-              🗑 Delete Phase
-            </button>
+          </div>
+          <TF label="Notes" value={phase.notes||""} onChange={v=>handleUpdate("phase",{mid:sel.mid,slid:sel.slid,srid:sel.srid,itemId:sel.itemId},"notes",v)} rows={3}/>
+          <div style={{marginBottom:14}}><FL>Add Dependency Arrow</FL>
+            <button onClick={()=>{setAddingDep({missionId:sel.mid,fromId:sel.itemId});setSel(null);}} style={{...BS("#6366f1"),width:"100%"}}>⬡ Draw arrow from this phase</button>
+          </div>
+          <div style={{paddingTop:16,borderTop:"1px solid #f1f5f9"}}>
+            <button onClick={()=>doDelete("phase",{mid:sel.mid,slid:sel.slid,srid:sel.srid,itemId:sel.itemId})} style={{...BS("#dc2626"),width:"100%",padding:"8px"}}>🗑 Delete Phase</button>
           </div>
         </PanelShell>
       );
     }
 
-    if (sel.type === "milestone" && swimlane) {
-      const ms = swimlane.milestones.find(m => m.id === sel.itemId);
-      if (!ms) return null;
-      return (
-        <PanelShell title={ms.name||"Milestone"} subtitle={`${mission.name} / ${swimlane.name}`} color={ms.color} onClose={() => setSel(null)}>
-          <TextField label="Milestone Name" value={ms.name} onChange={v => handleUpdate("milestone", sel.missionId, sel.swimlaneId, sel.itemId, "name", v)} />
-          <Field label="Month">
-            <select value={ms.month} onChange={e => handleUpdate("milestone", sel.missionId, sel.swimlaneId, sel.itemId, "month", +e.target.value)} style={{ ...IS,width:"100%" }}>
-              {ALL_MONTHS.map((m,i) => <option key={i} value={i}>{m}</option>)}
+    if(sel.type==="milestone"&&sr){
+      const ms=(sr.milestones||[]).find(m=>m.id===sel.itemId);if(!ms) return null;
+      return(
+        <PanelShell title={ms.name||"Milestone"} subtitle={`${mission.name} / ${sl.name} / ${sr.name}`} color={ms.color} onClose={()=>setSel(null)}>
+          <TF label="Milestone Name" value={ms.name} onChange={v=>handleUpdate("milestone",{mid:sel.mid,slid:sel.slid,srid:sel.srid,itemId:sel.itemId},"name",v)} bold/>
+          <div style={{marginBottom:14}}><FL>Month</FL>
+            <select value={ms.month} onChange={e=>handleUpdate("milestone",{mid:sel.mid,slid:sel.slid,srid:sel.srid,itemId:sel.itemId},"month",+e.target.value)} style={{...IS,width:"100%"}}>
+              {ALL_MONTHS.map((m,i)=><option key={i} value={i}>{m}</option>)}
             </select>
-          </Field>
-          <ColorPicker value={ms.color} onChange={v => handleUpdate("milestone", sel.missionId, sel.swimlaneId, sel.itemId, "color", v)} diamond />
-          <TextField label="Notes" value={ms.notes} onChange={v => handleUpdate("milestone", sel.missionId, sel.swimlaneId, sel.itemId, "notes", v)} rows={3} />
-          <Field label="Add Dependency">
-            <button onClick={() => { setAddingDep({ missionId: sel.missionId, fromId: sel.itemId }); setSel(null); }}
-              style={{ ...BS("#6366f1"), width:"100%" }}>
-              ⬡ Draw arrow from this milestone
-            </button>
-          </Field>
-          <div style={{ marginTop:8, paddingTop:16, borderTop:"1px solid #f1f5f9" }}>
-            <button onClick={() => doDelete("milestone", sel.missionId, sel.swimlaneId, sel.itemId)} style={{ ...BS("#dc2626"), width:"100%", padding:"8px" }}>
-              🗑 Delete Milestone
-            </button>
+          </div>
+          <ColPick value={ms.color} onChange={v=>handleUpdate("milestone",{mid:sel.mid,slid:sel.slid,srid:sel.srid,itemId:sel.itemId},"color",v)} diamond/>
+          <TF label="Notes" value={ms.notes||""} onChange={v=>handleUpdate("milestone",{mid:sel.mid,slid:sel.slid,srid:sel.srid,itemId:sel.itemId},"notes",v)} rows={3}/>
+          <div style={{marginBottom:14}}><FL>Add Dependency Arrow</FL>
+            <button onClick={()=>{setAddingDep({missionId:sel.mid,fromId:sel.itemId});setSel(null);}} style={{...BS("#6366f1"),width:"100%"}}>⬡ Draw arrow from this milestone</button>
+          </div>
+          <div style={{paddingTop:16,borderTop:"1px solid #f1f5f9"}}>
+            <button onClick={()=>doDelete("milestone",{mid:sel.mid,slid:sel.slid,srid:sel.srid,itemId:sel.itemId})} style={{...BS("#dc2626"),width:"100%",padding:"8px"}}>🗑 Delete Milestone</button>
           </div>
         </PanelShell>
       );
     }
-
-    if (sel.type === "textrow" && swimlane) {
-      const tr = (swimlane.textRows||[]).find(t => t.id === sel.itemId);
-      if (!tr) return null;
-      return (
-        <PanelShell title="Text Note" subtitle={`${mission.name} / ${swimlane.name}`} color={swimlane.color} onClose={() => setSel(null)}>
-          <TextField label="Text" value={tr.text} onChange={v => handleUpdate("textrow", sel.missionId, sel.swimlaneId, sel.itemId, "text", v)} rows={3} />
-          <ColorPicker value={tr.color} onChange={v => handleUpdate("textrow", sel.missionId, sel.swimlaneId, sel.itemId, "color", v)} />
-          <div style={{ marginTop:8, paddingTop:16, borderTop:"1px solid #f1f5f9" }}>
-            <button onClick={() => doDelete("textrow", sel.missionId, sel.swimlaneId, sel.itemId)} style={{ ...BS("#dc2626"), width:"100%", padding:"8px" }}>
-              🗑 Delete Note
-            </button>
-          </div>
-        </PanelShell>
-      );
-    }
-
     return null;
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
-  return (
-    <div style={{ flex:1, overflowX:"auto", overflowY:"auto", position:"relative" }}>
-
-      {/* Zoom controls */}
-      <div style={{ position:"sticky", top:0, zIndex:30, background:"#f8fafc", borderBottom:"1px solid #e2e8f0",
-        padding:"6px 16px", display:"flex", alignItems:"center", gap:8 }}>
-        <span style={{ fontSize:10, color:"#94a3b8", fontWeight:600, letterSpacing:"0.1em" }}>ZOOM</span>
-        {ZOOM_LEVELS.map((z,i) => (
-          <button key={i} onClick={() => setZoomIdx(i)} style={{
-            padding:"3px 10px", borderRadius:16,
-            border:`1px solid ${i===zoomIdx?"#6366f1":"#e2e8f0"}`,
-            background:i===zoomIdx?"#eef2ff":"#fff",
-            color:i===zoomIdx?"#4f46e5":"#64748b",
-            fontSize:11, cursor:"pointer", fontFamily:"inherit", fontWeight:i===zoomIdx?700:400,
-          }}>{z.label}</button>
+  return(
+    <div style={{flex:1,display:"flex",flexDirection:"column",overflowY:"auto",position:"relative",background:"#f8fafc"}}>
+      {/* Zoom bar */}
+      <div style={{position:"sticky",top:0,zIndex:30,background:"#f8fafc",borderBottom:"1px solid #e2e8f0",padding:"6px 16px",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+        <span style={{fontSize:10,color:"#94a3b8",fontWeight:600,letterSpacing:"0.1em"}}>ZOOM</span>
+        {ZOOM_LEVELS.map((z,i)=>(
+          <button key={i} onClick={()=>setZoomIdx(i)} style={{padding:"3px 10px",borderRadius:16,border:`1px solid ${i===zoomIdx?"#6366f1":"#e2e8f0"}`,background:i===zoomIdx?"#eef2ff":"#fff",color:i===zoomIdx?"#4f46e5":"#64748b",fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:i===zoomIdx?700:400}}>{z.label}</button>
         ))}
-        <div style={{ marginLeft:"auto", fontSize:11, color:"#94a3b8" }}>
-          {addingDep ? <span style={{ color:"#6366f1", fontWeight:600 }}>⬡ Click a phase or milestone to connect →</span> : ""}
+        {addingDep&&<>
+          <span style={{marginLeft:8,fontSize:11,color:"#6366f1",fontWeight:600}}>⬡ Click a phase or milestone to connect to…</span>
+          <button onClick={()=>setAddingDep(null)} style={{...BS("#94a3b8"),padding:"3px 10px"}}>Cancel</button>
+        </>}
+        <div style={{marginLeft:"auto",fontSize:10,color:"#94a3b8",fontStyle:"italic"}}>
+          {missions.length} mission{missions.length!==1?"s":""} · {missions.reduce((n,m)=>n+m.swimlanes.length,0)} swimlanes
         </div>
-        {addingDep && (
-          <button onClick={() => setAddingDep(null)} style={{ ...BS("#94a3b8"), padding:"3px 10px" }}>Cancel</button>
-        )}
       </div>
 
-      {/* Missions */}
-      {missions.map((mission, mIdx) => {
-        const totalRows = mission.swimlanes.length;
-        const boardH = totalRows * ROW;
-
-        return (
-          <div key={mission.id} style={{ marginBottom:32 }}>
-
-            {/* Mission header */}
-            <div style={{
-              display:"flex", alignItems:"center", gap:10,
-              padding:"10px 16px", background:`${mission.color}0d`,
-              borderTop:`3px solid ${mission.color}`,
-              borderBottom:`1px solid ${mission.color}33`,
-              cursor:"pointer",
-            }} onClick={() => updateMission(mission.id, m => ({ ...m, collapsed:!m.collapsed }))}>
-              <span style={{ color:mission.color, fontSize:9 }}>{mission.collapsed ? "▶" : "▼"}</span>
-              <div style={{ width:12, height:12, borderRadius:3, background:mission.color, flexShrink:0 }}/>
-              <div style={{ flex:1, minWidth:0 }}>
-                <span style={{ fontSize:14, fontWeight:700, color:"#0f172a" }}>{mission.name}</span>
-                {mission.subtitle && <span style={{ fontSize:11, color:"#64748b", marginLeft:10 }}>{mission.subtitle}</span>}
+      <div style={{flex:1,overflowX:"auto",paddingBottom:60}}>
+        {missions.map(mission=>{
+          const rowMap=buildRowMap(mission);
+          const boardWidth=LBL+MONTHS.length*COL+2;
+          return(
+            <div key={mission.id} style={{marginBottom:40}}>
+              {/* Mission header */}
+              <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 16px",background:`${mission.color}0d`,borderTop:`3px solid ${mission.color}`,borderBottom:`1px solid ${mission.color}33`,position:"sticky",left:0}}>
+                <span onClick={()=>updM(mission.id,m=>({...m,collapsed:!m.collapsed}))} style={{color:mission.color,fontSize:9,cursor:"pointer",padding:"2px 4px"}}>{mission.collapsed?"▶":"▼"}</span>
+                <div style={{width:13,height:13,borderRadius:3,background:mission.color,flexShrink:0}}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <span style={{fontSize:14,fontWeight:700,color:"#0f172a"}}>{mission.name}</span>
+                  {mission.subtitle&&<span style={{fontSize:11,color:"#64748b",marginLeft:10}}>{mission.subtitle}</span>}
+                </div>
+                {mission.owner&&<span style={{fontSize:11,color:"#64748b",flexShrink:0}}>{mission.owner}</span>}
+                <RagBadge rag={mission.rag} small/>
+                <button onClick={()=>setSel({type:"mission",mid:mission.id})} style={{background:"none",border:"none",color:"#94a3b8",cursor:"pointer",fontSize:14,padding:"2px 6px"}} title="Edit mission">✎</button>
               </div>
-              {mission.owner && <span style={{ fontSize:11, color:"#64748b" }}>{mission.owner}</span>}
-              <RagBadge rag={mission.rag} small />
-              <button onClick={e => { e.stopPropagation(); setSel({ type:"mission", missionId:mission.id }); }}
-                style={{ background:"none", border:"none", color:"#94a3b8", cursor:"pointer", fontSize:14, padding:"2px 6px" }} title="Edit mission">✎</button>
-            </div>
 
-            {/* Board */}
-            {!mission.collapsed && (
-              <div style={{ overflowX:"auto" }}>
-                <div style={{ minWidth: LBL + MONTHS.length * COL + 2, position:"relative" }}>
-
+              {!mission.collapsed&&(
+                <div style={{minWidth:boardWidth,position:"relative"}}>
                   {/* Month header */}
-                  <div style={{ display:"flex", position:"sticky", top:42, zIndex:25, background:"#fff",
-                    borderBottom:"2px solid #e2e8f0", height:28 }}>
-                    <div style={{ width:LBL, flexShrink:0, background:"#fff", borderRight:"2px solid #e2e8f0",
-                      display:"flex", alignItems:"center", padding:"0 12px",
-                      fontSize:10, fontWeight:700, color:"#64748b" }}>
-                      SWIMLANE
-                    </div>
-                    {MONTHS.map((m,i) => (
-                      <div key={i} style={{
-                        width:COL, flexShrink:0, fontSize:9, color: i===TODAY_IDX?"#3b82f6":"#94a3b8",
-                        fontWeight:i===TODAY_IDX?700:400, display:"flex", alignItems:"center",
-                        justifyContent:"center", borderLeft:"1px solid #f1f5f9",
-                        background:i===TODAY_IDX?"#eff6ff":"transparent",
-                      }}>{m}</div>
+                  <div style={{display:"flex",position:"sticky",top:38,zIndex:25,background:"#fff",borderBottom:"2px solid #e2e8f0",height:28}}>
+                    <div style={{width:LBL,flexShrink:0,background:"#fff",borderRight:"2px solid #e2e8f0",display:"flex",alignItems:"center",padding:"0 12px",fontSize:10,fontWeight:700,color:"#64748b",letterSpacing:"0.08em"}}>SWIMLANE / WORKSTREAM</div>
+                    {MONTHS.map((m,i)=>(
+                      <div key={i} style={{width:COL,flexShrink:0,fontSize:9,color:i===TODAY_IDX?"#3b82f6":"#94a3b8",fontWeight:i===TODAY_IDX?700:400,display:"flex",alignItems:"center",justifyContent:"center",borderLeft:"1px solid #f1f5f9",background:i===TODAY_IDX?"#eff6ff":"transparent"}}>{m}</div>
                     ))}
                   </div>
 
-                  {/* Swimlane rows — all in one relative container for SVG overlay */}
-                  <div style={{ position:"relative" }}>
-                    <DependencyLines
-                      missions={missions} activeMissionId={mission.id}
-                      COL={COL} ROW={ROW} LBL={LBL} zoomMonths={MONTHS.length}
-                    />
+                  <div style={{position:"relative"}}>
+                    <DepLines mission={mission} rowMap={rowMap} COL={COL} LBL={LBL}/>
+                    {TODAY_IDX<MONTHS.length&&(
+                      <div style={{position:"absolute",left:LBL+TODAY_IDX*COL+COL/2,top:0,bottom:0,width:2,background:"#3b82f666",pointerEvents:"none",zIndex:15}}/>
+                    )}
 
-                    {mission.swimlanes.map((sl, slIdx) => {
-                      const isAddingPhaseHere      = addingPhase?.missionId === mission.id && addingPhase?.swimlaneId === sl.id;
-                      const isAddingMilestoneHere  = addingMilestone?.missionId === mission.id && addingMilestone?.swimlaneId === sl.id;
-                      const isAddingTextHere       = addingText?.missionId === mission.id && addingText?.swimlaneId === sl.id;
-
-                      return (
-                        <div key={sl.id}>
-                          {/* Swimlane row */}
-                          <div style={{ display:"flex", alignItems:"stretch",
-                            borderBottom:"1px solid #f1f5f9", minHeight:ROW, background:"#fff" }}>
-
-                            {/* Label */}
-                            <div style={{
-                              width:LBL, flexShrink:0,
-                              borderRight:`2px solid ${sl.color}44`,
-                              borderLeft:`3px solid ${sl.color}`,
-                              padding:"0 6px 0 10px",
-                              display:"flex", alignItems:"center", gap:5,
-                              background:`${sl.color}06`,
-                            }}>
-                              <span style={{ fontSize:11, fontWeight:600, color:"#374151", flex:1,
-                                overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{sl.name}</span>
-                              <button onClick={() => setSel({ type:"swimlane", missionId:mission.id, swimlaneId:sl.id })}
-                                style={{ background:"none",border:"none",color:"#cbd5e1",cursor:"pointer",fontSize:12,padding:"1px 3px",flexShrink:0 }} title="Edit swimlane">✎</button>
-                              {/* Add buttons */}
-                              <button title="Add phase"
-                                onClick={() => { setAddingPhase({ missionId:mission.id, swimlaneId:sl.id }); setNewPhase({ name:"",start:0,duration:3,rag:"G",color:sl.color,notes:"" }); }}
-                                style={{ background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:4,color:"#3b82f6",cursor:"pointer",fontSize:11,padding:"1px 6px",fontFamily:"monospace",lineHeight:1.5,flexShrink:0 }}>+</button>
-                              <button title="Add milestone"
-                                onClick={() => { setAddingMilestone({ missionId:mission.id, swimlaneId:sl.id }); setNewMilestone({ name:"",month:0,color:"#f59e0b",notes:"" }); }}
-                                style={{ background:"#fffbeb",border:"1px solid #fde68a",borderRadius:4,color:"#d97706",cursor:"pointer",fontSize:11,padding:"1px 5px",fontFamily:"monospace",lineHeight:1.5,flexShrink:0 }}>◆</button>
-                              <button title="Add text note"
-                                onClick={() => { setAddingText({ missionId:mission.id, swimlaneId:sl.id }); setNewText(""); }}
-                                style={{ background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:4,color:"#16a34a",cursor:"pointer",fontSize:11,padding:"1px 5px",lineHeight:1.5,flexShrink:0 }}>T</button>
-                            </div>
-
-                            {/* Timeline area */}
-                            <div style={{ position:"relative", display:"flex", flex:1 }}>
-                              {/* Grid */}
-                              {MONTHS.map((_,i) => (
-                                <div key={i} style={{ width:COL, height:"100%", flexShrink:0,
-                                  borderLeft:"1px solid #f1f5f9",
-                                  background:i===TODAY_IDX?"#eff6ff08":"transparent" }}/>
-                              ))}
-
-                              {/* Phase bars */}
-                              {(sl.phases||[]).map(phase => {
-                                if (phase.start >= MONTHS.length) return null;
-                                const isSel = sel?.type==="phase" && sel?.itemId===phase.id;
-                                const isDepFrom = addingDep?.fromId === phase.id;
-                                const visEnd = Math.min(phase.start + phase.duration, MONTHS.length);
-                                const bw = (visEnd - phase.start) * COL - 4;
-                                return (
-                                  <div key={phase.id}
-                                    title={`${phase.name} | ${ALL_MONTHS[phase.start]}→${ALL_MONTHS[Math.min(phase.start+phase.duration-1,ALL_MONTHS.length-1)]} | ${RAG[phase.rag].label}`}
-                                    style={{
-                                      position:"absolute", left:phase.start*COL+2, width:Math.max(bw,20),
-                                      top:6, height:ROW-12,
-                                      background:`linear-gradient(90deg,${phase.color}ee,${phase.color}99)`,
-                                      border:`1px solid ${phase.color}`,
-                                      borderLeft:`3px solid ${RAG[phase.rag].color}`,
-                                      borderRadius:5, cursor: addingDep ? "crosshair" : "grab",
-                                      display:"flex", alignItems:"center", overflow:"hidden",
-                                      boxShadow: isSel ? `0 0 0 2px ${RAG[phase.rag].color},0 2px 8px rgba(0,0,0,0.12)` :
-                                                 isDepFrom ? `0 0 0 3px #6366f1` : "0 1px 3px rgba(0,0,0,0.1)",
-                                      userSelect:"none", zIndex:isSel?5:1, touchAction:"none",
-                                    }}
-                                    onMouseDown={e => { if (addingDep) return; handleDrag(e, mission.id, sl.id, phase, "move"); }}
-                                    onTouchStart={e => { if (addingDep) return; handleDrag(e, mission.id, sl.id, phase, "move"); }}
-                                    onClick={e => {
-                                      e.stopPropagation();
-                                      if (addingDep && addingDep.missionId === mission.id) { doAddDep(mission.id, phase.id); return; }
-                                      setSel(isSel ? null : { type:"phase", missionId:mission.id, swimlaneId:sl.id, itemId:phase.id });
-                                    }}
-                                  >
-                                    <div onMouseDown={e=>{e.stopPropagation();if(!addingDep)handleDrag(e,mission.id,sl.id,phase,"left");}}
-                                      style={{ position:"absolute",left:0,top:0,width:mobile?14:6,height:"100%",cursor:"ew-resize",zIndex:3,touchAction:"none" }}/>
-                                    <span style={{ fontSize:10,color:"#fff",padding:"0 6px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",pointerEvents:"none",textShadow:"0 1px 2px rgba(0,0,0,0.3)",flex:1 }}>
-                                      {phase.name}
-                                    </span>
-                                    <div onMouseDown={e=>{e.stopPropagation();if(!addingDep)handleDrag(e,mission.id,sl.id,phase,"right");}}
-                                      style={{ position:"absolute",right:0,top:0,width:mobile?14:6,height:"100%",cursor:"ew-resize",zIndex:3,touchAction:"none" }}/>
-                                  </div>
-                                );
-                              })}
-
-                              {/* Milestone diamonds */}
-                              {(sl.milestones||[]).map(ms => {
-                                if (ms.month >= MONTHS.length) return null;
-                                const isSel = sel?.type==="milestone" && sel?.itemId===ms.id;
-                                const sz = 13;
-                                const cx = ms.month * COL + COL/2;
-                                return (
-                                  <div key={ms.id}
-                                    title={`◆ ${ms.name}${ms.notes?" — "+ms.notes:""} | ${ALL_MONTHS[ms.month]}`}
-                                    onClick={e => {
-                                      e.stopPropagation();
-                                      if (addingDep && addingDep.missionId === mission.id) { doAddDep(mission.id, ms.id); return; }
-                                      setSel(isSel ? null : { type:"milestone", missionId:mission.id, swimlaneId:sl.id, itemId:ms.id });
-                                    }}
-                                    style={{
-                                      position:"absolute", left:cx - sz/2, top:ROW/2 - sz/2,
-                                      width:sz, height:sz, transform:"rotate(45deg)",
-                                      background:ms.color, border:isSel?"2px solid #0f172a":`2px solid ${ms.color}cc`,
-                                      cursor: addingDep ? "crosshair" : "pointer", zIndex:10,
-                                      boxShadow:isSel?`0 0 0 3px ${ms.color}66,0 2px 8px rgba(0,0,0,0.2)`:"0 1px 4px rgba(0,0,0,0.2)",
-                                    }}
-                                  />
-                                );
-                              })}
-
-                              {/* Text rows */}
-                              {(sl.textRows||[]).map(tr => (
-                                <div key={tr.id}
-                                  onClick={e => { e.stopPropagation(); setSel({ type:"textrow", missionId:mission.id, swimlaneId:sl.id, itemId:tr.id }); }}
-                                  style={{
-                                    position:"absolute", left:8, top: ROW/2 - 10,
-                                    fontSize:11, color:tr.color||"#64748b",
-                                    background:"#fff", border:`1px solid ${tr.color||"#e2e8f0"}88`,
-                                    borderRadius:4, padding:"2px 8px", cursor:"pointer",
-                                    maxWidth: MONTHS.length * COL - 16,
-                                    overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
-                                    boxShadow:"0 1px 3px rgba(0,0,0,0.06)",
-                                  }}>{tr.text}</div>
-                              ))}
-                            </div>
+                    {mission.swimlanes.map((sl,slIdx)=>(
+                      <div key={sl.id}>
+                        {/* Swimlane header */}
+                        <div style={{display:"flex",alignItems:"stretch",background:`${sl.color}12`,borderTop:`2px solid ${sl.color}44`,borderBottom:`1px solid ${sl.color}33`,minHeight:36,position:"sticky",left:0}}>
+                          <div style={{width:LBL,flexShrink:0,borderLeft:`4px solid ${sl.color}`,borderRight:`2px solid ${sl.color}33`,padding:"0 8px 0 10px",display:"flex",alignItems:"center",gap:6}}>
+                            <span onClick={()=>updSL(mission.id,sl.id,s=>({...s,collapsed:!s.collapsed}))} style={{color:sl.color,fontSize:8,cursor:"pointer",flexShrink:0}}>{sl.collapsed?"▶":"▼"}</span>
+                            <span style={{fontSize:12,fontWeight:700,color:"#1e293b",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sl.name}</span>
+                            <button onClick={()=>setSel({type:"swimlane",mid:mission.id,slid:sl.id})} style={{background:"none",border:"none",color:"#94a3b8",cursor:"pointer",fontSize:12,padding:"1px 3px",flexShrink:0}}>✎</button>
                           </div>
-
-                          {/* Add phase inline form */}
-                          {isAddingPhaseHere && (
-                            <div style={{ display:"flex",flexWrap:"wrap",gap:6,padding:"8px 10px 8px 24px",background:"#eff6ff",borderBottom:"1px solid #bfdbfe" }}>
-                              <input placeholder="Phase name" value={newPhase.name} onChange={e=>setNewPhase(n=>({...n,name:e.target.value}))} style={IS} autoFocus onKeyDown={e=>e.key==="Enter"&&doAddPhase(mission.id,sl.id)}/>
-                              <select value={newPhase.start} onChange={e=>setNewPhase(n=>({...n,start:+e.target.value}))} style={IS}>
-                                {ALL_MONTHS.map((m,i)=><option key={i} value={i}>{m}</option>)}
-                              </select>
-                              <select value={newPhase.duration} onChange={e=>setNewPhase(n=>({...n,duration:+e.target.value}))} style={IS}>
-                                {Array.from({length:24},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}mo</option>)}
-                              </select>
-                              <select value={newPhase.rag} onChange={e=>setNewPhase(n=>({...n,rag:e.target.value}))} style={IS}>
-                                <option value="G">On Track</option><option value="A">At Risk</option><option value="R">In Trouble</option>
-                              </select>
-                              <div style={{ display:"flex",gap:4,alignItems:"center" }}>
-                                {PALETTE.map(c=>(<div key={c} onClick={()=>setNewPhase(n=>({...n,color:c}))} style={{ width:16,height:16,borderRadius:3,background:c,cursor:"pointer",border:newPhase.color===c?"2px solid #0f172a":"2px solid transparent" }}/>))}
-                              </div>
-                              <button onClick={()=>doAddPhase(mission.id,sl.id)} style={BS("#3b82f6")}>Add</button>
-                              <button onClick={()=>setAddingPhase(null)} style={BS("#94a3b8")}>Cancel</button>
-                            </div>
-                          )}
-
-                          {/* Add milestone inline form */}
-                          {isAddingMilestoneHere && (
-                            <div style={{ display:"flex",flexWrap:"wrap",gap:6,padding:"8px 10px 8px 24px",background:"#fffbeb",borderBottom:"1px solid #fde68a" }}>
-                              <input placeholder="Milestone name" value={newMilestone.name} onChange={e=>setNewMilestone(n=>({...n,name:e.target.value}))} style={IS} autoFocus onKeyDown={e=>e.key==="Enter"&&doAddMilestone(mission.id,sl.id)}/>
-                              <select value={newMilestone.month} onChange={e=>setNewMilestone(n=>({...n,month:+e.target.value}))} style={IS}>
-                                {ALL_MONTHS.map((m,i)=><option key={i} value={i}>{m}</option>)}
-                              </select>
-                              <div style={{ display:"flex",gap:4,alignItems:"center" }}>
-                                {PALETTE.map(c=>(<div key={c} onClick={()=>setNewMilestone(n=>({...n,color:c}))} style={{ width:16,height:16,transform:"rotate(45deg)",background:c,cursor:"pointer",border:newMilestone.color===c?"2px solid #0f172a":"2px solid transparent" }}/>))}
-                              </div>
-                              <button onClick={()=>doAddMilestone(mission.id,sl.id)} style={BS("#d97706")}>Add ◆</button>
-                              <button onClick={()=>setAddingMilestone(null)} style={BS("#94a3b8")}>Cancel</button>
-                            </div>
-                          )}
-
-                          {/* Add text inline form */}
-                          {isAddingTextHere && (
-                            <div style={{ display:"flex",gap:6,padding:"8px 10px 8px 24px",background:"#f0fdf4",borderBottom:"1px solid #bbf7d0" }}>
-                              <input placeholder="Note text" value={newText} onChange={e=>setNewText(e.target.value)} style={{ ...IS,flex:1 }} autoFocus onKeyDown={e=>e.key==="Enter"&&doAddText(mission.id,sl.id)}/>
-                              <button onClick={()=>doAddText(mission.id,sl.id)} style={BS("#16a34a")}>Add</button>
-                              <button onClick={()=>setAddingText(null)} style={BS("#94a3b8")}>Cancel</button>
-                            </div>
-                          )}
+                          <div style={{flex:1,display:"flex",alignItems:"center",padding:"0 12px"}}>
+                            <span style={{fontSize:10,color:sl.color,fontWeight:600,opacity:0.8}}>
+                              {sl.subrows.length} workstream{sl.subrows.length!==1?"s":""}
+                              {sl.subrows.reduce((n,sr)=>n+(sr.phases||[]).length,0)>0?` · ${sl.subrows.reduce((n,sr)=>n+(sr.phases||[]).length,0)} phases`:""}
+                            </span>
+                          </div>
                         </div>
-                      );
-                    })}
 
-                    {/* Today line */}
-                    {TODAY_IDX < MONTHS.length && (
-                      <div style={{
-                        position:"absolute", left:LBL + TODAY_IDX * COL + COL/2,
-                        top:0, bottom:0, width:2,
-                        background:"#3b82f688", pointerEvents:"none", zIndex:15,
-                      }}/>
-                    )}
-                  </div>
-
-                  {/* Add swimlane row */}
-                  <div style={{ padding:"6px 12px", background:"#f8fafc", borderTop:"1px solid #f1f5f9" }}>
-                    {addingSwimlane === mission.id ? (
-                      <div style={{ display:"flex",gap:6,alignItems:"center" }}>
-                        <input placeholder="Swimlane name" value={newSwimlaneName} onChange={e=>setNewSwimlaneName(e.target.value)}
-                          style={{ ...IS,flex:1 }} autoFocus onKeyDown={e=>e.key==="Enter"&&doAddSwimlane(mission.id)}/>
-                        <button onClick={()=>doAddSwimlane(mission.id)} style={BS("#6366f1")}>Add</button>
-                        <button onClick={()=>setAddingSwimlane(null)} style={BS("#94a3b8")}>Cancel</button>
+                        {!sl.collapsed&&(
+                          <>
+                            {sl.subrows.map((sr,srIdx)=>{
+                              const isAPH=addingPhase?.mid===mission.id&&addingPhase?.slid===sl.id&&addingPhase?.srid===sr.id;
+                              const isAMS=addingMs?.mid===mission.id&&addingMs?.slid===sl.id&&addingMs?.srid===sr.id;
+                              return(
+                                <div key={sr.id}>
+                                  <div style={{display:"flex",alignItems:"stretch",borderBottom:"1px solid #f1f5f9",minHeight:SUB_ROW_H,background:srIdx%2===0?"#fff":"#fafbfc"}}>
+                                    {/* Sub-row label */}
+                                    <div style={{width:LBL,flexShrink:0,borderLeft:`4px solid ${sl.color}`,borderRight:"1px solid #f1f5f9",padding:"0 6px 0 20px",display:"flex",alignItems:"center",gap:4,background:srIdx%2===0?`${sl.color}04`:`${sl.color}08`}}>
+                                      <span style={{fontSize:11,color:"#475569",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontStyle:(sr.phases||[]).length===0&&!(sr.milestones||[]).length?"italic":"normal"}}>{sr.name}</span>
+                                      <button onClick={()=>setSel({type:"subrow",mid:mission.id,slid:sl.id,srid:sr.id})} style={{background:"none",border:"none",color:"#e2e8f0",cursor:"pointer",fontSize:11,padding:"1px 2px",flexShrink:0}} title="Edit">✎</button>
+                                      <button title="Add phase" onClick={()=>{setAddingPhase({mid:mission.id,slid:sl.id,srid:sr.id});setNewPhase({name:"",start:0,duration:3,rag:"G",color:sl.color,notes:""}); }}
+                                        style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:4,color:"#3b82f6",cursor:"pointer",fontSize:11,padding:"1px 5px",fontFamily:"monospace",lineHeight:1.5,flexShrink:0}}>+</button>
+                                      <button title="Add milestone" onClick={()=>{setAddingMs({mid:mission.id,slid:sl.id,srid:sr.id});setNewMs({name:"",month:0,color:"#f59e0b",notes:""}); }}
+                                        style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:4,color:"#d97706",cursor:"pointer",fontSize:10,padding:"1px 4px",fontFamily:"monospace",lineHeight:1.5,flexShrink:0}}>◆</button>
+                                    </div>
+                                    {/* Timeline */}
+                                    <div style={{position:"relative",display:"flex",flex:1}}>
+                                      {MONTHS.map((_,i)=>(
+                                        <div key={i} style={{width:COL,height:"100%",flexShrink:0,borderLeft:"1px solid #f1f5f9",background:i===TODAY_IDX?"#eff6ff08":"transparent"}}/>
+                                      ))}
+                                      {/* Phase bars */}
+                                      {(sr.phases||[]).map(phase=>{
+                                        if(phase.start>=MONTHS.length) return null;
+                                        const isSel=sel?.type==="phase"&&sel?.itemId===phase.id;
+                                        const isDF=addingDep?.fromId===phase.id;
+                                        const visEnd=Math.min(phase.start+phase.duration,MONTHS.length);
+                                        const bw=(visEnd-phase.start)*COL-4;
+                                        return(
+                                          <div key={phase.id}
+                                            title={`${phase.name} | ${ALL_MONTHS[phase.start]}→${ALL_MONTHS[Math.min(phase.start+phase.duration-1,ALL_MONTHS.length-1)]} | ${RAG[phase.rag].label}`}
+                                            style={{position:"absolute",left:phase.start*COL+2,width:Math.max(bw,24),top:8,height:SUB_ROW_H-16,background:`linear-gradient(90deg,${phase.color}ee,${phase.color}99)`,border:`1px solid ${phase.color}`,borderLeft:`3px solid ${RAG[phase.rag].color}`,borderRadius:6,cursor:addingDep?"crosshair":"grab",display:"flex",alignItems:"center",overflow:"hidden",boxShadow:isSel?`0 0 0 2px ${RAG[phase.rag].color},0 2px 8px rgba(0,0,0,0.15)`:isDF?`0 0 0 3px #6366f1`:"0 1px 4px rgba(0,0,0,0.1)",userSelect:"none",zIndex:isSel?5:1,touchAction:"none"}}
+                                            onMouseDown={e=>{if(addingDep)return;handleDrag(e,mission.id,sl.id,sr.id,phase,"move");}}
+                                            onTouchStart={e=>{if(addingDep)return;handleDrag(e,mission.id,sl.id,sr.id,phase,"move");}}
+                                            onClick={e=>{e.stopPropagation();if(addingDep?.missionId===mission.id){doAddDep(mission.id,phase.id);return;}setSel(isSel?null:{type:"phase",mid:mission.id,slid:sl.id,srid:sr.id,itemId:phase.id});}}
+                                          >
+                                            <div onMouseDown={e=>{e.stopPropagation();if(!addingDep)handleDrag(e,mission.id,sl.id,sr.id,phase,"left");}} style={{position:"absolute",left:0,top:0,width:mobile?14:7,height:"100%",cursor:"ew-resize",zIndex:3,touchAction:"none"}}/>
+                                            <span style={{fontSize:11,color:"#fff",padding:"0 10px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",pointerEvents:"none",textShadow:"0 1px 2px rgba(0,0,0,0.35)",flex:1,fontWeight:500}}>{phase.name}</span>
+                                            {phase.notes&&<span style={{fontSize:9,marginRight:6,flexShrink:0,pointerEvents:"none",opacity:0.85}}>📝</span>}
+                                            <div onMouseDown={e=>{e.stopPropagation();if(!addingDep)handleDrag(e,mission.id,sl.id,sr.id,phase,"right");}} style={{position:"absolute",right:0,top:0,width:mobile?14:7,height:"100%",cursor:"ew-resize",zIndex:3,touchAction:"none"}}/>
+                                          </div>
+                                        );
+                                      })}
+                                      {/* Milestones */}
+                                      {(sr.milestones||[]).map(ms=>{
+                                        if(ms.month>=MONTHS.length) return null;
+                                        const isSel=sel?.type==="milestone"&&sel?.itemId===ms.id;
+                                        const sz=14,cx=ms.month*COL+COL/2;
+                                        return(
+                                          <div key={ms.id} title={`◆ ${ms.name} | ${ALL_MONTHS[ms.month]}`}
+                                            onClick={e=>{e.stopPropagation();if(addingDep?.missionId===mission.id){doAddDep(mission.id,ms.id);return;}setSel(isSel?null:{type:"milestone",mid:mission.id,slid:sl.id,srid:sr.id,itemId:ms.id});}}
+                                            style={{position:"absolute",left:cx-sz/2,top:SUB_ROW_H/2-sz/2,width:sz,height:sz,transform:"rotate(45deg)",background:ms.color,border:isSel?"2px solid #0f172a":`2px solid ${ms.color}cc`,cursor:addingDep?"crosshair":"pointer",zIndex:10,boxShadow:isSel?`0 0 0 3px ${ms.color}55,0 2px 8px rgba(0,0,0,0.2)`:"0 1px 4px rgba(0,0,0,0.18)"}}
+                                          />
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                  {isAPH&&(
+                                    <div style={{display:"flex",flexWrap:"wrap",gap:6,padding:"8px 10px 8px 28px",background:"#eff6ff",borderBottom:"1px solid #bfdbfe"}}>
+                                      <input placeholder="Phase name" value={newPhase.name} onChange={e=>setNewPhase(n=>({...n,name:e.target.value}))} style={IS} autoFocus onKeyDown={e=>e.key==="Enter"&&doAddPhase(mission.id,sl.id,sr.id)}/>
+                                      <select value={newPhase.start} onChange={e=>setNewPhase(n=>({...n,start:+e.target.value}))} style={IS}>
+                                        {ALL_MONTHS.map((m,i)=><option key={i} value={i}>{m}</option>)}
+                                      </select>
+                                      <select value={newPhase.duration} onChange={e=>setNewPhase(n=>({...n,duration:+e.target.value}))} style={IS}>
+                                        {Array.from({length:24},(_,i)=>i+1).map(d=><option key={d} value={d}>{d}mo</option>)}
+                                      </select>
+                                      <select value={newPhase.rag} onChange={e=>setNewPhase(n=>({...n,rag:e.target.value}))} style={IS}>
+                                        <option value="G">On Track</option><option value="A">At Risk</option><option value="R">In Trouble</option>
+                                      </select>
+                                      <div style={{display:"flex",gap:4,alignItems:"center"}}>
+                                        {PALETTE.map(c=>(<div key={c} onClick={()=>setNewPhase(n=>({...n,color:c}))} style={{width:16,height:16,borderRadius:3,background:c,cursor:"pointer",border:newPhase.color===c?"2px solid #0f172a":"2px solid transparent"}}/>))}
+                                      </div>
+                                      <button onClick={()=>doAddPhase(mission.id,sl.id,sr.id)} style={BS("#3b82f6")}>Add</button>
+                                      <button onClick={()=>setAddingPhase(null)} style={BS("#94a3b8")}>Cancel</button>
+                                    </div>
+                                  )}
+                                  {isAMS&&(
+                                    <div style={{display:"flex",flexWrap:"wrap",gap:6,padding:"8px 10px 8px 28px",background:"#fffbeb",borderBottom:"1px solid #fde68a"}}>
+                                      <input placeholder="Milestone name" value={newMs.name} onChange={e=>setNewMs(n=>({...n,name:e.target.value}))} style={IS} autoFocus onKeyDown={e=>e.key==="Enter"&&doAddMs(mission.id,sl.id,sr.id)}/>
+                                      <select value={newMs.month} onChange={e=>setNewMs(n=>({...n,month:+e.target.value}))} style={IS}>
+                                        {ALL_MONTHS.map((m,i)=><option key={i} value={i}>{m}</option>)}
+                                      </select>
+                                      <div style={{display:"flex",gap:4,alignItems:"center"}}>
+                                        {PALETTE.map(c=>(<div key={c} onClick={()=>setNewMs(n=>({...n,color:c}))} style={{width:16,height:16,transform:"rotate(45deg)",background:c,cursor:"pointer",border:newMs.color===c?"2px solid #0f172a":"2px solid transparent"}}/>))}
+                                      </div>
+                                      <button onClick={()=>doAddMs(mission.id,sl.id,sr.id)} style={BS("#d97706")}>Add ◆</button>
+                                      <button onClick={()=>setAddingMs(null)} style={BS("#94a3b8")}>Cancel</button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            {/* Add sub-row */}
+                            <div style={{padding:"5px 10px 5px 20px",background:`${sl.color}06`,borderBottom:`1px solid ${sl.color}22`}}>
+                              {addingSR?.mid===mission.id&&addingSR?.slid===sl.id?(
+                                <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                                  <input placeholder="Workstream name (e.g. Leadership, Curriculum)" value={newSRName} onChange={e=>setNewSRName(e.target.value)} style={{...IS,flex:1}} autoFocus onKeyDown={e=>e.key==="Enter"&&doAddSR(mission.id,sl.id)}/>
+                                  <button onClick={()=>doAddSR(mission.id,sl.id)} style={BS(sl.color)}>Add</button>
+                                  <button onClick={()=>setAddingSR(null)} style={BS("#94a3b8")}>Cancel</button>
+                                </div>
+                              ):(
+                                <button onClick={()=>setAddingSR({mid:mission.id,slid:sl.id})} style={{background:"none",border:"none",color:sl.color,cursor:"pointer",fontSize:11,fontFamily:"inherit",opacity:0.7}}>+ Add workstream</button>
+                              )}
+                            </div>
+                          </>
+                        )}
                       </div>
-                    ) : (
-                      <button onClick={()=>setAddingSwimlane(mission.id)}
-                        style={{ background:"none",border:"none",color:"#94a3b8",cursor:"pointer",fontSize:11,fontFamily:"inherit" }}>
-                        + Add swimlane
-                      </button>
-                    )}
+                    ))}
+
+                    {/* Add swimlane */}
+                    <div style={{padding:"7px 14px",background:"#f8fafc",borderTop:"1px solid #f1f5f9"}}>
+                      {addingSL===mission.id?(
+                        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                          <input placeholder="Swimlane name (e.g. NHS, Local Authority)" value={newSLName} onChange={e=>setNewSLName(e.target.value)} style={{...IS,flex:1}} autoFocus onKeyDown={e=>e.key==="Enter"&&doAddSL(mission.id)}/>
+                          <button onClick={()=>doAddSL(mission.id)} style={BS("#6366f1")}>Add</button>
+                          <button onClick={()=>setAddingSL(null)} style={BS("#94a3b8")}>Cancel</button>
+                        </div>
+                      ):(
+                        <button onClick={()=>setAddingSL(mission.id)} style={{background:"none",border:"none",color:"#94a3b8",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Add swimlane</button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-        );
-      })}
+              )}
+            </div>
+          );
+        })}
 
-      {/* Add mission */}
-      <div style={{ padding:"12px 16px", background:"#f8fafc", borderTop:"1px solid #e2e8f0" }}>
-        {addingMission ? (
-          <div style={{ display:"flex",gap:8,alignItems:"center",maxWidth:500 }}>
-            <input placeholder="Mission name (e.g. Mission Coastal)" value={newMissionName}
-              onChange={e=>setNewMissionName(e.target.value)} style={{ ...IS,flex:1,fontSize:13 }}
-              autoFocus onKeyDown={e=>e.key==="Enter"&&doAddMission()}/>
-            <button onClick={doAddMission} style={BS("#6366f1")}>Add Mission</button>
-            <button onClick={()=>setAddingMission(false)} style={BS("#94a3b8")}>Cancel</button>
-          </div>
-        ) : (
-          <button onClick={()=>setAddingMission(true)}
-            style={{ background:"none",border:"1px dashed #cbd5e1",borderRadius:8,color:"#94a3b8",
-              cursor:"pointer",fontSize:12,fontFamily:"inherit",padding:"8px 20px" }}>
-            + Add Mission
-          </button>
-        )}
+        {/* Add mission */}
+        <div style={{padding:"14px 16px",borderTop:"1px solid #e2e8f0"}}>
+          {addingMission?(
+            <div style={{display:"flex",gap:8,alignItems:"center",maxWidth:500}}>
+              <input placeholder="Mission name (e.g. Mission Coastal)" value={newMissionName} onChange={e=>setNewMissionName(e.target.value)} style={{...IS,flex:1,fontSize:13}} autoFocus onKeyDown={e=>e.key==="Enter"&&doAddMission()}/>
+              <button onClick={doAddMission} style={BS("#6366f1")}>Add Mission</button>
+              <button onClick={()=>setAddingMission(false)} style={BS("#94a3b8")}>Cancel</button>
+            </div>
+          ):(
+            <button onClick={()=>setAddingMission(true)} style={{background:"none",border:"1px dashed #cbd5e1",borderRadius:8,color:"#94a3b8",cursor:"pointer",fontSize:12,fontFamily:"inherit",padding:"8px 20px"}}>+ Add Mission</button>
+          )}
+        </div>
       </div>
 
       {/* Sync chip */}
-      <div style={{ position:"fixed",bottom:16,right:sel?"356px":"16px",
-        fontSize:10,fontFamily:"monospace",background:"#fff",padding:"4px 10px",borderRadius:20,
-        border:`1px solid ${syncStatus==="synced"?"#bbf7d0":syncStatus==="saving"?"#fde68a":syncStatus==="error"?"#fecaca":"#e2e8f0"}`,
-        color:syncStatus==="synced"?"#15803d":syncStatus==="saving"?"#92400e":syncStatus==="error"?"#991b1b":"#94a3b8",
-        boxShadow:"0 1px 3px rgba(0,0,0,0.1)", transition:"all 0.3s", zIndex:50,
-      }}>
+      <div style={{position:"fixed",bottom:16,right:sel?"356px":"16px",fontSize:10,fontFamily:"monospace",background:"#fff",padding:"4px 10px",borderRadius:20,border:`1px solid ${syncStatus==="synced"?"#bbf7d0":syncStatus==="saving"?"#fde68a":syncStatus==="error"?"#fecaca":"#e2e8f0"}`,color:syncStatus==="synced"?"#15803d":syncStatus==="saving"?"#92400e":syncStatus==="error"?"#991b1b":"#94a3b8",boxShadow:"0 1px 3px rgba(0,0,0,0.1)",transition:"all 0.3s",zIndex:50}}>
         {syncStatus==="synced"?"✓ Saved":syncStatus==="saving"?"● Saving…":syncStatus==="error"?"✗ Offline":"○ Local"}
       </div>
 
-      {/* Detail panel */}
       {renderPanel()}
     </div>
   );
