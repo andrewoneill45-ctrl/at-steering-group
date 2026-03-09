@@ -482,27 +482,23 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local" 
   useEffect(() => { themesRef.current = themes; }, [themes]);
 
   const pushThemes = useCallback((updater, skipHistory=false) => {
-    if (skipHistory) {
-      // For UI-only changes (collapse/expand/drag) pass updater directly
-      // so React always resolves against the latest state
-      setThemes(prev => {
-        const next = typeof updater === "function" ? updater(prev) : updater;
-        themesRef.current = next;
-        return next;
-      });
-      return;
-    }
-    // For history-tracked changes, compute next from latest known state
-    const current = themesRef.current;
-    const next = typeof updater === "function" ? updater(current) : updater;
-    themesRef.current = next;
-    setThemes(next);
-    const trimmed = histRef.current.history.slice(0, histRef.current.idx + 1);
-    const newHist = [...trimmed, next].slice(-50);
-    histRef.current.history = newHist;
-    histRef.current.idx = newHist.length - 1;
-    setHistory([...newHist]);
-    setHistIdx(newHist.length - 1);
+    // Always use functional updater so React resolves against true latest state
+    setThemes(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      themesRef.current = next;
+      if (!skipHistory) {
+        const trimmed = histRef.current.history.slice(0, histRef.current.idx + 1);
+        const newHist = [...trimmed, next].slice(-50);
+        histRef.current.history = newHist;
+        histRef.current.idx = newHist.length - 1;
+        // Schedule state updates outside the setThemes call
+        setTimeout(() => {
+          setHistory([...newHist]);
+          setHistIdx(newHist.length - 1);
+        }, 0);
+      }
+      return next;
+    });
   }, [setThemes]);
 
   const canUndo = histIdx > 0;
