@@ -35,6 +35,7 @@ function DetailPanel({ sel, themes, onClose, onUpdate, onDeletePhase, onDeletePr
   if (sel.type === "theme") {
     return (
       <PanelShell title={theme.name} subtitle="Theme" color={theme.color} onClose={onClose}>
+        <NameField value={theme.name} onChange={v => onUpdate("theme", sel.themeId, null, null, "name", v)} label="Theme Name" />
         <OwnerField value={theme.owner} onChange={v => onUpdate("theme", sel.themeId, null, null, "owner", v)} />
         <RagSelector value={theme.rag} onChange={v => onUpdate("theme", sel.themeId, null, null, "rag", v)} />
         <NotesField value={theme.notes} onChange={v => onUpdate("theme", sel.themeId, null, null, "notes", v)} label="Theme Notes" />
@@ -54,6 +55,7 @@ function DetailPanel({ sel, themes, onClose, onUpdate, onDeletePhase, onDeletePr
     const summary = POLICY_SUMMARIES[proj.id];
     return (
       <PanelShell title={proj.name} subtitle={theme.name} color={theme.color} onClose={onClose}>
+        <NameField value={proj.name} onChange={v => onUpdate("project", sel.themeId, sel.projId, null, "name", v)} label="Project Name" />
         <OwnerField value={proj.owner} onChange={v => onUpdate("project", sel.themeId, sel.projId, null, "owner", v)} />
         <RagSelector value={proj.rag} onChange={v => onUpdate("project", sel.themeId, sel.projId, null, "rag", v)} />
         <NotesField value={proj.notes} onChange={v => onUpdate("project", sel.themeId, sel.projId, null, "notes", v)} label="Notes" />
@@ -106,6 +108,7 @@ function DetailPanel({ sel, themes, onClose, onUpdate, onDeletePhase, onDeletePr
 
   return (
     <PanelShell title={phase.name} subtitle={`${theme.name} / ${proj.name}`} color={theme.color} onClose={onClose}>
+      <NameField value={phase.name} onChange={v => onUpdate("phase", sel.themeId, sel.projId, sel.phaseId, "name", v)} label="Phase Name" />
       <RagSelector value={phase.rag} onChange={v => onUpdate("phase", sel.themeId, sel.projId, sel.phaseId, "rag", v)} />
       <div style={{ marginBottom:13 }}>
         <div style={LS}>Phase Colour</div>
@@ -215,6 +218,15 @@ function OwnerField({ value, onChange }) {
       <div style={LS}>DfE Director / Owner</div>
       <input value={value} onChange={e=>onChange(e.target.value)} placeholder="Enter name..."
         style={{ ...IS,width:"100%",marginTop:5 }} />
+    </div>
+  );
+}
+function NameField({ value, onChange, label="Name" }) {
+  return (
+    <div style={{ marginBottom:14 }}>
+      <div style={LS}>{label}</div>
+      <input value={value} onChange={e=>onChange(e.target.value)} placeholder="Enter name..."
+        style={{ ...IS,width:"100%",marginTop:5,fontSize:13,fontWeight:600 }} />
     </div>
   );
 }
