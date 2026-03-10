@@ -59,30 +59,24 @@ function DetailPanel({ sel, themes, onClose, onUpdate, onDeletePhase, onDeletePr
         <NameField value={proj.name} onChange={v => onUpdate("project", sel.themeId, sel.projId, null, "name", v)} label="Project Name" />
         <OwnerField value={proj.owner} onChange={v => onUpdate("project", sel.themeId, sel.projId, null, "owner", v)} />
         <RagSelector value={proj.rag} onChange={v => onUpdate("project", sel.themeId, sel.projId, null, "rag", v)} />
-        <NotesField value={proj.notes} onChange={v => onUpdate("project", sel.themeId, sel.projId, null, "notes", v)} label="Notes" />
-        <NotesField value={proj.status} onChange={v => onUpdate("project", sel.themeId, sel.projId, null, "status", v)} label="Update / Status" rows={2} />
-        {proj.funding && (
-          <div style={{ marginBottom:14, padding:"10px 12px", background:"#f0fdf4", borderRadius:8, border:"1px solid #bbf7d0" }}>
-            <div style={{ fontSize:9, fontWeight:700, color:"#15803d", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:4 }}>💰 Funding Commitment</div>
-            <div style={{ fontSize:12, color:"#166534", lineHeight:1.5 }}>{proj.funding}</div>
-          </div>
-        )}
-        <div style={{ marginBottom:14 }}>
-          <div style={LS}>Deliverables</div>
-          <div style={{ fontSize:12, color:"#64748b", lineHeight:1.6, marginTop:5, padding:"10px 12px", background:"#f8fafc", borderRadius:8 }}>{proj.deliverables}</div>
-        </div>
         {summary && (
           <div style={{ marginBottom:14, padding:"12px 14px", background:"#faf5ff", borderRadius:8, border:"1px solid #e9d5ff" }}>
             <div style={{ fontSize:9, fontWeight:700, color:"#7c3aed", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>📄 White Paper Summary</div>
             <div style={{ fontSize:12, color:"#4c1d95", lineHeight:1.7 }}>{summary}</div>
           </div>
         )}
-        <div style={{ paddingTop:8, paddingBottom:8 }}>
-          <button onClick={() => onDeleteProject(sel.themeId, sel.projId)} style={{ ...BS("#dc2626"), width:"100%", padding:"8px", fontSize:12 }}>
-            🗑 Delete Project
-          </button>
+        <div style={{ marginBottom:14 }}>
+          <div style={LS}>Deliverables</div>
+          <div style={{ fontSize:12, color:"#64748b", lineHeight:1.6, marginTop:5, padding:"10px 12px", background:"#f8fafc", borderRadius:8 }}>{proj.deliverables}</div>
         </div>
-        <div style={{ marginTop:14 }}>
+        {proj.funding && (
+          <div style={{ marginBottom:14, padding:"10px 12px", background:"#f0fdf4", borderRadius:8, border:"1px solid #bbf7d0" }}>
+            <div style={{ fontSize:9, fontWeight:700, color:"#15803d", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:4 }}>💰 Funding Commitment</div>
+            <div style={{ fontSize:12, color:"#166534", lineHeight:1.5 }}>{proj.funding}</div>
+          </div>
+        )}
+        <NotesField value={proj.status} onChange={v => onUpdate("project", sel.themeId, sel.projId, null, "status", v)} label="Update / Status" rows={2} />
+        <div style={{ marginBottom:14 }}>
           <div style={LS}>Phases</div>
           {proj.phases.map(ph => (
             <div key={ph.id} style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 0", borderBottom:"1px solid #f1f5f9" }}>
@@ -96,9 +90,14 @@ function DetailPanel({ sel, themes, onClose, onUpdate, onDeletePhase, onDeletePr
                   {ALL_MONTHS[ph.start]}→{ALL_MONTHS[Math.min(ph.start+ph.duration-1,ALL_MONTHS.length-1)]}
                 </span>
               </div>
-
             </div>
           ))}
+        </div>
+        <NotesField value={proj.notes} onChange={v => onUpdate("project", sel.themeId, sel.projId, null, "notes", v)} label="Notes" />
+        <div style={{ paddingTop:8, paddingBottom:8 }}>
+          <button onClick={() => onDeleteProject(sel.themeId, sel.projId)} style={{ ...BS("#dc2626"), width:"100%", padding:"8px", fontSize:12 }}>
+            🗑 Delete Project
+          </button>
         </div>
       </PanelShell>
     );
