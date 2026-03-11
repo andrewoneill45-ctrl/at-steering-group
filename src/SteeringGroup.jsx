@@ -279,6 +279,13 @@ function Dashboard({ themes, onNavigateToProject }) {
   const mobile  = w < 640;
   const tablet  = w < 900;
 
+  // Collapsible state — themes keyed by id, panels by name
+  const [collapsedThemes,   setCollapsedThemes]   = useState({});
+  const [attentionOpen,     setAttentionOpen]     = useState(true);
+  const [fundingOpen,       setFundingOpen]       = useState(true);
+
+  const toggleThemeDash = id => setCollapsedThemes(p => ({ ...p, [id]: !p[id] }));
+
   const allProjects = themes.flatMap(t => t.projects);
   const allPhases   = allProjects.flatMap(p => p.phases);
   const c = (arr, r) => arr.filter(x => x === r).length;
@@ -295,55 +302,95 @@ function Dashboard({ themes, onNavigateToProject }) {
   const total    = allProjects.length;
   const pctGood  = Math.round((onTrack / total) * 100);
 
+  // Reusable collapsible panel header
+  const SectionHeader = ({ label, badge, open, onToggle, danger }) => (
+    <div onClick={onToggle} style={{
+      padding:"13px 20px", borderBottom: open ? "1px solid #f1f5f9" : "none",
+      display:"flex", alignItems:"center", justifyContent:"space-between", cursor:"pointer",
+      userSelect:"none",
+    }}
+      onMouseEnter={e=>e.currentTarget.style.background="#fafbfc"}
+      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+      <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color: danger?"#991b1b":"#0f172a" }}>{label}</span>
+      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+        {badge && <span style={{ fontSize:10, color:"#94a3b8" }}>{badge}</span>}
+        <span style={{ fontSize:11, color:"#94a3b8", lineHeight:1 }}>{open ? "▲" : "▼"}</span>
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ padding: mobile ? "20px 16px" : tablet ? "24px 24px" : "32px 40px", maxWidth:1400, margin:"0 auto" }}>
 
-      {/* ── Programme headline ── */}
+      {/* ── Programme Status ── */}
       <div style={{ marginBottom: mobile ? 24 : 36 }}>
-        <div style={{ fontSize:11, fontWeight:600, letterSpacing:"0.12em", textTransform:"uppercase", color:"#94a3b8", marginBottom:8 }}>
+        <div style={{ fontSize:11, fontWeight:600, letterSpacing:"0.12em", textTransform:"uppercase", color:"#94a3b8", marginBottom:16 }}>
           Programme Status — {new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}
         </div>
-        <div style={{ display:"flex", alignItems:"flex-end", gap: mobile ? 20 : 48, flexWrap:"wrap" }}>
-          <div>
-            <div style={{ fontSize: mobile ? 48 : 64, fontWeight:700, color:"#0f172a", lineHeight:1, letterSpacing:"-2px" }}>{pctGood}%</div>
-            <div style={{ fontSize:13, color:"#64748b", marginTop:4 }}>of projects on track</div>
+
+        {/* Metric cards row */}
+        <div style={{ display:"grid", gridTemplateColumns: mobile ? "1fr 1fr" : "2fr 1fr 1fr 1fr", gap: mobile ? 10 : 14, marginBottom:16 }}>
+
+          {/* Big % card */}
+          <div style={{
+            background:"linear-gradient(135deg,#0f172a 0%,#1e293b 100%)",
+            borderRadius:14, padding: mobile ? "18px 20px" : "22px 28px",
+            display:"flex", flexDirection:"column", justifyContent:"space-between",
+            gridRow: mobile ? "1 / 3" : "auto",
+            minHeight: mobile ? 130 : "auto",
+          }}>
+            <div style={{ fontSize:10, fontWeight:600, letterSpacing:"0.12em", textTransform:"uppercase", color:"#64748b", marginBottom:8 }}>On Track</div>
+            <div>
+              <div style={{ fontSize: mobile ? 52 : 64, fontWeight:800, color:"#fff", lineHeight:1, letterSpacing:"-3px" }}>{pctGood}<span style={{ fontSize: mobile ? 28:36, letterSpacing:"-1px" }}>%</span></div>
+              <div style={{ fontSize:11, color:"#64748b", marginTop:6 }}>{onTrack} of {total} projects</div>
+            </div>
           </div>
-          {[
-            { n: onTrack,  label:"On Track",    bar:"#16a34a" },
-            { n: atRiskN,  label:"At Risk",     bar:"#d97706" },
-            { n: trouble,  label:"In Trouble",  bar:"#dc2626" },
-          ].map(({ n, label, bar }) => (
-            <div key={label} style={{ display:"flex", flexDirection:"column", gap:4 }}>
-              <div style={{ width:3, height: mobile ? 30 : 40, background:bar, borderRadius:2 }} />
-              <div style={{ fontSize: mobile ? 22 : 28, fontWeight:700, color:"#0f172a", lineHeight:1 }}>{n}</div>
-              <div style={{ fontSize:11, color:"#94a3b8", fontWeight:500 }}>{label}</div>
-            </div>
-          ))}
-          {!mobile && (
-            <div style={{ flex:1, minWidth:220 }}>
-              <div style={{ display:"flex", gap:2, height:8, borderRadius:6, overflow:"hidden", background:"#f1f5f9" }}>
-                <div style={{ width:`${(onTrack/total)*100}%`, background:"#16a34a" }}/>
-                <div style={{ width:`${(atRiskN/total)*100}%`, background:"#d97706" }}/>
-                <div style={{ width:`${(trouble/total)*100}%`, background:"#dc2626" }}/>
-              </div>
-              <div style={{ display:"flex", justifyContent:"space-between", marginTop:6, fontSize:10, color:"#94a3b8" }}>
-                <span>{total} projects across {themes.length} themes</span>
-                <span>{allPhases.length} delivery phases</span>
-              </div>
-            </div>
-          )}
+
+          {/* On Track */}
+          <div style={{ background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:14, padding: mobile ? "16px 18px" : "20px 22px" }}>
+            <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"#16a34a", marginBottom:8 }}>On Track</div>
+            <div style={{ fontSize: mobile ? 36 : 44, fontWeight:800, color:"#15803d", lineHeight:1, letterSpacing:"-2px" }}>{onTrack}</div>
+            <div style={{ fontSize:10, color:"#16a34a", marginTop:6, opacity:0.8 }}>projects</div>
+          </div>
+
+          {/* At Risk */}
+          <div style={{ background:"#fffbeb", border:"1px solid #fde68a", borderRadius:14, padding: mobile ? "16px 18px" : "20px 22px" }}>
+            <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"#d97706", marginBottom:8 }}>At Risk</div>
+            <div style={{ fontSize: mobile ? 36 : 44, fontWeight:800, color:"#92400e", lineHeight:1, letterSpacing:"-2px" }}>{atRiskN}</div>
+            <div style={{ fontSize:10, color:"#d97706", marginTop:6, opacity:0.8 }}>projects</div>
+          </div>
+
+          {/* In Trouble */}
+          <div style={{ background:"#fef2f2", border:"1px solid #fecaca", borderRadius:14, padding: mobile ? "16px 18px" : "20px 22px" }}>
+            <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"#dc2626", marginBottom:8 }}>In Trouble</div>
+            <div style={{ fontSize: mobile ? 36 : 44, fontWeight:800, color:"#991b1b", lineHeight:1, letterSpacing:"-2px" }}>{trouble}</div>
+            <div style={{ fontSize:10, color:"#dc2626", marginTop:6, opacity:0.8 }}>projects</div>
+          </div>
         </div>
-        {/* Progress bar on mobile below headline */}
-        {mobile && (
-          <div style={{ marginTop:16 }}>
-            <div style={{ display:"flex", gap:2, height:6, borderRadius:6, overflow:"hidden", background:"#f1f5f9" }}>
-              <div style={{ width:`${(onTrack/total)*100}%`, background:"#16a34a" }}/>
-              <div style={{ width:`${(atRiskN/total)*100}%`, background:"#d97706" }}/>
-              <div style={{ width:`${(trouble/total)*100}%`, background:"#dc2626" }}/>
-            </div>
-            <div style={{ fontSize:10, color:"#94a3b8", marginTop:5 }}>{total} projects · {themes.length} themes · {allPhases.length} phases</div>
+
+        {/* Progress bar + meta */}
+        <div style={{ background:"#fff", borderRadius:12, border:"1px solid #e8ecf0", padding:"14px 20px", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
+          <div style={{ display:"flex", gap:2, height:10, borderRadius:6, overflow:"hidden", background:"#f1f5f9", marginBottom:10 }}>
+            <div style={{ width:`${(onTrack/total)*100}%`, background:"linear-gradient(90deg,#16a34a,#22c55e)", transition:"width 0.5s" }}/>
+            <div style={{ width:`${(atRiskN/total)*100}%`, background:"linear-gradient(90deg,#d97706,#fbbf24)", transition:"width 0.5s" }}/>
+            <div style={{ width:`${(trouble/total)*100}%`, background:"linear-gradient(90deg,#dc2626,#f87171)", transition:"width 0.5s" }}/>
           </div>
-        )}
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:8 }}>
+            <div style={{ display:"flex", gap:16 }}>
+              {[{c:"#16a34a",l:"On Track"},{c:"#d97706",l:"At Risk"},{c:"#dc2626",l:"In Trouble"}].map(({c:col,l}) => (
+                <div key={l} style={{ display:"flex", alignItems:"center", gap:5 }}>
+                  <span style={{ width:8, height:8, borderRadius:2, background:col, display:"inline-block" }}/>
+                  <span style={{ fontSize:10, color:"#64748b" }}>{l}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ display:"flex", gap:16 }}>
+              <span style={{ fontSize:10, color:"#94a3b8" }}>{total} projects</span>
+              <span style={{ fontSize:10, color:"#94a3b8" }}>{themes.length} themes</span>
+              <span style={{ fontSize:10, color:"#94a3b8" }}>{allPhases.length} delivery phases</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div style={{ display:"grid", gridTemplateColumns: tablet ? "1fr" : "1fr 360px", gap: mobile ? 16 : 28, alignItems:"start" }}>
@@ -352,8 +399,9 @@ function Dashboard({ themes, onNavigateToProject }) {
         <div>
           <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"#94a3b8", marginBottom:14 }}>Delivery Themes</div>
           <div style={{ background:"#fff", borderRadius:12, border:"1px solid #e8ecf0", overflow:"hidden", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
-            {/* Table header — hide count cols on mobile */}
-            <div style={{ display:"grid", gridTemplateColumns: mobile ? "1fr 60px" : "1fr 80px 80px 80px 80px", padding:"10px 20px", borderBottom:"1px solid #f1f5f9", background:"#f8fafc" }}>
+            {/* Table header */}
+            <div style={{ display:"grid", gridTemplateColumns: mobile ? "24px 1fr 60px" : "24px 1fr 80px 80px 80px 80px", padding:"10px 20px", borderBottom:"1px solid #f1f5f9", background:"#f8fafc" }}>
+              <div/>
               <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:"#94a3b8" }}>Theme</div>
               {!mobile && <>
                 <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:"#94a3b8", textAlign:"center" }}>On Track</div>
@@ -362,16 +410,28 @@ function Dashboard({ themes, onNavigateToProject }) {
               </>}
               <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:"#94a3b8", textAlign:"center" }}>RAG</div>
             </div>
+
             {themes.map((theme, idx) => {
               const pRags = theme.projects.map(p => p.rag);
               const tg = c(pRags,"G"), ta = c(pRags,"A"), tr = c(pRags,"R");
               const worst = ragWorst([theme.rag, ...pRags]);
               const isLast = idx === themes.length - 1;
+              const isCollapsed = !!collapsedThemes[theme.id];
               return (
-                <div key={theme.id}>
-                  <div style={{ display:"grid", gridTemplateColumns: mobile ? "1fr 60px" : "1fr 80px 80px 80px 80px",
-                    padding: mobile ? "12px 16px" : "14px 20px",
-                    borderBottom: isLast ? "none" : "1px solid #f8fafc", background:"#fff" }}>
+                <div key={theme.id} style={{ borderBottom: isLast ? "none" : "1px solid #f1f5f9" }}>
+                  {/* Theme row */}
+                  <div style={{
+                    display:"grid", gridTemplateColumns: mobile ? "24px 1fr 60px" : "24px 1fr 80px 80px 80px 80px",
+                    padding: mobile ? "12px 16px" : "13px 20px",
+                    background:"#fff", cursor:"pointer", userSelect:"none",
+                  }}
+                    onClick={() => toggleThemeDash(theme.id)}
+                    onMouseEnter={e=>e.currentTarget.style.background="#fafbfc"}
+                    onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
+                    {/* Collapse chevron */}
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      <span style={{ fontSize:8, color:theme.color, fontWeight:700 }}>{isCollapsed ? "▶" : "▼"}</span>
+                    </div>
                     <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                       <div style={{ width:3, height:32, background:theme.color, borderRadius:2, flexShrink:0 }}/>
                       <div>
@@ -394,33 +454,35 @@ function Dashboard({ themes, onNavigateToProject }) {
                       <span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:RAG[worst].color }}/>
                     </div>
                   </div>
-                  {/* Project rows — hide on mobile to reduce noise */}
-                  {!mobile && theme.projects.map((p, pi) => (
+
+                  {/* Project sub-rows — collapsible */}
+                  {!isCollapsed && !mobile && theme.projects.map((p, pi) => (
                     <div key={p.id}
                       onClick={() => onNavigateToProject(theme.id, p.id)}
-                      style={{ display:"grid", gridTemplateColumns:"1fr 80px 80px 80px 80px",
-                        padding:"9px 20px 9px 52px",
-                        borderBottom: pi < theme.projects.length-1 || !isLast ? "1px solid #f8fafc" : "none",
-                        cursor:"pointer", transition:"background 0.1s" }}
-                      onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"}
-                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      style={{ display:"grid", gridTemplateColumns:"24px 1fr 80px 80px 80px 80px",
+                        padding:"9px 20px 9px 20px",
+                        borderTop:"1px solid #f8fafc",
+                        cursor:"pointer", transition:"background 0.1s",
+                        background: pi%2===0 ? "#fafbfc" : "#fff" }}
+                      onMouseEnter={e=>e.currentTarget.style.background="#f1f5f9"}
+                      onMouseLeave={e=>e.currentTarget.style.background=pi%2===0?"#fafbfc":"#fff"}>
+                      <div/>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, paddingLeft:28 }}>
                         <span style={{ width:5, height:5, borderRadius:"50%", background:RAG[p.rag].color, flexShrink:0 }}/>
                         <span style={{ fontSize:11, color:"#374151", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</span>
                         {p.funding && <span style={{ fontSize:10, color:"#94a3b8", flexShrink:0, marginLeft:4 }}>· {p.funding.split("—")[0].trim()}</span>}
                       </div>
-                      <div style={{ gridColumn:"5", textAlign:"center", alignSelf:"center" }}>
+                      <div style={{ gridColumn:"6", textAlign:"center", alignSelf:"center" }}>
                         <span style={{ display:"inline-block", width:7, height:7, borderRadius:"50%", background:RAG[p.rag].color }}/>
                       </div>
                     </div>
                   ))}
-                  {/* On mobile: tap theme row to expand projects */}
-                  {mobile && theme.projects.map((p, pi) => (
+                  {!isCollapsed && mobile && theme.projects.map((p, pi) => (
                     <div key={p.id}
                       onClick={() => onNavigateToProject(theme.id, p.id)}
                       style={{ display:"flex", alignItems:"center", gap:10,
-                        padding:"10px 16px 10px 32px",
-                        borderBottom: pi < theme.projects.length-1 || !isLast ? "1px solid #f8fafc" : "none",
+                        padding:"10px 16px 10px 44px",
+                        borderTop:"1px solid #f8fafc",
                         cursor:"pointer", minHeight:44 }}>
                       <span style={{ width:6, height:6, borderRadius:"50%", background:RAG[p.rag].color, flexShrink:0 }}/>
                       <span style={{ fontSize:12, color:"#374151", flex:1 }}>{p.name}</span>
@@ -437,56 +499,65 @@ function Dashboard({ themes, onNavigateToProject }) {
         <div style={{ display:"flex", flexDirection:"column", gap: mobile ? 16 : 20 }}>
 
           {atRisk.length > 0 && (
-            <div style={{ background:"#fff", borderRadius:12, border:"1px solid #e8ecf0", overflow:"hidden", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
-              <div style={{ padding:"14px 20px", borderBottom:"1px solid #f1f5f9", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"#0f172a" }}>Requires Attention</span>
-                <span style={{ fontSize:10, color:"#94a3b8" }}>{trouble} red · {atRiskN} amber</span>
-              </div>
-              <div style={{ padding:"8px 0" }}>
-                {atRisk.slice(0, mobile ? 8 : 12).map((item, i) => (
-                  <div key={i}
-                    onClick={() => onNavigateToProject(item.themeId, item.id)}
-                    style={{ display:"flex", alignItems:"center", gap:12, padding: mobile ? "11px 20px" : "9px 20px",
-                      cursor:"pointer", transition:"background 0.1s", minHeight: mobile ? 48 : "auto",
-                      borderLeft:`3px solid ${RAG[item.rag].color}`,
-                      borderBottom: i < Math.min(atRisk.length, mobile?8:12)-1 ? "1px solid #f8fafc":"none" }}
-                    onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"}
-                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize: mobile ? 12 : 11, fontWeight:600, color:"#0f172a", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.name}</div>
-                      <div style={{ fontSize:10, color:"#94a3b8", marginTop:1 }}>{themes.find(t=>t.id===item.themeId)?.name}</div>
+            <div style={{ background:"#fff", borderRadius:12, border:"1px solid #fecaca", overflow:"hidden", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
+              <SectionHeader
+                label="Requires Attention"
+                badge={`${trouble} red · ${atRiskN} amber`}
+                open={attentionOpen}
+                onToggle={() => setAttentionOpen(o => !o)}
+                danger
+              />
+              {attentionOpen && (
+                <div style={{ padding:"8px 0" }}>
+                  {atRisk.slice(0, mobile ? 8 : 12).map((item, i) => (
+                    <div key={i}
+                      onClick={() => onNavigateToProject(item.themeId, item.id)}
+                      style={{ display:"flex", alignItems:"center", gap:12, padding: mobile ? "11px 20px" : "9px 20px",
+                        cursor:"pointer", transition:"background 0.1s", minHeight: mobile ? 48 : "auto",
+                        borderLeft:`3px solid ${RAG[item.rag].color}`,
+                        borderBottom: i < Math.min(atRisk.length, mobile?8:12)-1 ? "1px solid #f8fafc":"none" }}
+                      onMouseEnter={e=>e.currentTarget.style.background="#fff8f8"}
+                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize: mobile ? 12 : 11, fontWeight:600, color:"#0f172a", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.name}</div>
+                        <div style={{ fontSize:10, color:"#94a3b8", marginTop:1 }}>{themes.find(t=>t.id===item.themeId)?.name}</div>
+                      </div>
+                      <span style={{ fontSize:10, fontWeight:600, color:RAG[item.rag].color, flexShrink:0 }}>{RAG[item.rag].label}</span>
                     </div>
-                    <span style={{ fontSize:10, fontWeight:600, color:RAG[item.rag].color, flexShrink:0 }}>{RAG[item.rag].label}</span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           <div style={{ background:"#fff", borderRadius:12, border:"1px solid #e8ecf0", overflow:"hidden", boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
-            <div style={{ padding:"14px 20px", borderBottom:"1px solid #f1f5f9" }}>
-              <span style={{ fontSize:10, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase", color:"#0f172a" }}>Largest Funding Commitments</span>
-            </div>
-            <div style={{ padding:"8px 0" }}>
-              {allProjects.filter(p=>p.funding).slice(0, mobile ? 6 : 8).map((p,i,arr) => {
-                const themeColor = themes.find(t=>t.projects.some(x=>x.id===p.id))?.color || "#94a3b8";
-                return (
-                  <div key={p.id}
-                    onClick={() => onNavigateToProject(themes.find(t=>t.projects.some(x=>x.id===p.id))?.id, p.id)}
-                    style={{ display:"flex", alignItems:"center", gap:12, padding: mobile ? "11px 20px" : "9px 20px",
-                      cursor:"pointer", transition:"background 0.1s", minHeight: mobile ? 48 : "auto",
-                      borderBottom: i < arr.length-1 ? "1px solid #f8fafc":"none" }}
-                    onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"}
-                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                    <div style={{ width:3, height:28, background:themeColor, borderRadius:2, flexShrink:0 }}/>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize: mobile ? 12 : 11, fontWeight:600, color:"#0f172a", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</div>
-                      <div style={{ fontSize:10, color:"#64748b", marginTop:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.funding}</div>
+            <SectionHeader
+              label="Largest Funding Commitments"
+              open={fundingOpen}
+              onToggle={() => setFundingOpen(o => !o)}
+            />
+            {fundingOpen && (
+              <div style={{ padding:"8px 0" }}>
+                {allProjects.filter(p=>p.funding).slice(0, mobile ? 6 : 8).map((p,i,arr) => {
+                  const themeColor = themes.find(t=>t.projects.some(x=>x.id===p.id))?.color || "#94a3b8";
+                  return (
+                    <div key={p.id}
+                      onClick={() => onNavigateToProject(themes.find(t=>t.projects.some(x=>x.id===p.id))?.id, p.id)}
+                      style={{ display:"flex", alignItems:"center", gap:12, padding: mobile ? "11px 20px" : "9px 20px",
+                        cursor:"pointer", transition:"background 0.1s", minHeight: mobile ? 48 : "auto",
+                        borderBottom: i < arr.length-1 ? "1px solid #f8fafc":"none" }}
+                      onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"}
+                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                      <div style={{ width:3, height:28, background:themeColor, borderRadius:2, flexShrink:0 }}/>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize: mobile ? 12 : 11, fontWeight:600, color:"#0f172a", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</div>
+                        <div style={{ fontSize:10, color:"#64748b", marginTop:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.funding}</div>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
         </div>
