@@ -1,76 +1,108 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { supabase } from './supabase.js'
-import { INITIAL_MISSIONS } from './Missions.jsx'
+import { useState, useEffect, useRef, useCallback } from "react";
+import { supabase } from "./supabase.js";
+import { INITIAL_MISSIONS } from "./Missions.jsx";
 
-const MISSIONS_ID = 'achieve-thrive-missions'
-const POLL_INTERVAL = 5000
+const MISSIONS_ROW  = "achieve-thrive-missions";
+const SCHOOLS_ROW   = "achieve-thrive-schools";
+const DEBOUNCE_MS   = 1500;
+const POLL_MS       = 5000;
 
-export function useMissionsSync() {
-  const [missions, setMissionsState] = useState(INITIAL_MISSIONS)
-  const [syncStatus, setSyncStatus] = useState('local')
-  const saveTimer = useRef(null)
-  const isSavingRef = useRef(false)
-  const lastUpdatedAt = useRef(null)
+// ── Generic Supabase row sync ─────────────────────────────────────────────────
+function useRowSync(rowId, initial, defaultVal = null) {
+  const [data,       setData]       = useState(initial);
+  const [syncStatus, setSyncStatus] = useState("local");
+  const isSavingRef  = useRef(false);
+  const debounceRef  = useRef(null);
+  const firstLoad    = useRef(true);
 
-  const saveToSupabase = useCallback(async (data) => {
-    if (!supabase) return
-    setSyncStatus('saving')
-    try {
-      const now = new Date().toISOString()
-      const { error } = await supabase
-        .from('programmes')
-        .upsert({ id: MISSIONS_ID, data, updated_at: now })
-      if (error) throw error
-      lastUpdatedAt.current = now
-      setSyncStatus('synced')
-    } catch (err) {
-      console.warn('Missions save failed:', err.message)
-      setSyncStatus('error')
-    }
-  }, [])
-
-  const loadFromSupabase = useCallback(async (isInitial = false) => {
-    if (!supabase) return
-    try {
-      const { data, error } = await supabase
-        .from('programmes').select('data, updated_at').eq('id', MISSIONS_ID).single()
-      if (error) throw error
-      if (data?.data && Array.isArray(data.data)) {
-        if (!isInitial && isSavingRef.current) return
-        if (!isInitial && data.updated_at === lastUpdatedAt.current) return
-        lastUpdatedAt.current = data.updated_at
-        setMissionsState(data.data)
-        setSyncStatus('synced')
-      } else if (isInitial) {
-        await supabase.from('programmes').upsert({
-          id: MISSIONS_ID, data: INITIAL_MISSIONS, updated_at: new Date().toISOString()
-        })
-        setSyncStatus('synced')
-      }
-    } catch (err) {
-      if (isInitial) { setSyncStatus('local') }
-    }
-  }, [])
-
+  // Load on mount
   useEffect(() => {
-    if (!supabase) { setSyncStatus('local'); return }
-    loadFromSupabase(true)
-    const interval = setInterval(() => loadFromSupabase(false), POLL_INTERVAL)
-    return () => clearInterval(interval)
-  }, [loadFromSupabase])
+    (async () => {
+      try {
+        const { data: rows, error } = await supabase
+          .from("programmes")
+          .select("data")
+          .eq("id", rowId)
+          .single();
 
-  const setMissions = useCallback((updater) => {
-    setMissionsState(prev => {
-      const next = typeof updater === 'function' ? updater(prev) : updater
-      if (saveTimer.current) clearTimeout(saveTimer.current)
-      saveTimer.current = setTimeout(async () => {
-        isSavingRef.current = true
-        await saveToSupabase(next)
-        setTimeout(() => { isSavingRef.current = false }, POLL_INTERVAL + 1000)
-      }, 1500)
-      return next
-    })
-  }, [saveToSupabase])
+        if (!error && rows?.data) {
+          setData(rows.data);
+          setSyncStatus("synced");
+        } else {
+          setSyncStatus("local");
+        }
+      } catch {
+        setSyncStatus("error");
+      } finally {
+        firstLoad.current = false;
+      }
+    })();
+  }, [rowId]);
 
-  return { missions, setMissions, missionsSyncStatus: syncStatus }
+  // Poll for remote changes
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (isSavingRef.current) return;
+      try {
+        const { data: rows, error } = await supabase
+          .from("programmes")
+          .select("data,updated_at")
+          .eq("id", rowId)
+          .single();
+
+        if (!error && rows?.data) {
+          setData(rows.data);
+          setSyncStatus("synced");
+        }
+      } catch {}
+    }, POLL_MS);
+    return () => clearInterval(interval);
+  }, [rowId]);
+
+  // Save on change (debounced)
+  const setAndSave = useCallback((updater) => {
+    setData(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      setSyncStatus("saving");
+      debounceRef.current = setTimeout(async () => {
+        isSavingRef.current = true;
+        try {
+          await supabase.from("programmes").upsert({ id: rowId, data: next });
+          setSyncStatus("synced");
+        } catch {
+          setSyncStatus("error");
+        } finally {
+          isSavingRef.current = false;
+        }
+      }, DEBOUNCE_MS);
+      return next;
+    });
+  }, [rowId]);
+
+  return { data, setData: setAndSave, syncStatus };
+}
+
+// ── Combined hook ─────────────────────────────────────────────────────────────
+export function useMissionsSync() {
+  const {
+    data: missions,
+    setData: setMissions,
+    syncStatus: missionsSyncStatus,
+  } = useRowSync(MISSIONS_ROW, INITIAL_MISSIONS);
+
+  const {
+    data: missionSchools,
+    setData: setMissionSchools,
+    syncStatus: schoolsSyncStatus,
+  } = useRowSync(SCHOOLS_ROW, []);
+
+  return {
+    missions,
+    setMissions,
+    missionsSyncStatus,
+    missionSchools:    missionSchools ?? [],
+    setMissionSchools,
+    schoolsSyncStatus,
+  };
 }

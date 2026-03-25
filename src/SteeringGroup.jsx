@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import Missions from "./Missions.jsx";
+import SchoolsTab from "./SchoolsTab.jsx";
 import {
   ALL_MONTHS, TODAY_IDX, RAG, PALETTE, ZOOM_LEVELS, uid, ragWorst,
   POLICY_SUMMARIES, INITIAL_THEMES
@@ -567,7 +568,7 @@ function Dashboard({ themes, onNavigateToProject }) {
 }
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
-export default function SteeringGroup({ themes, setThemes, syncStatus = "local", missions=[], setMissions=()=>{}, missionsSyncStatus="local" }) {
+export default function SteeringGroup({ themes, setThemes, syncStatus = "local", missions=[], setMissions=()=>{}, missionsSyncStatus="local", missionSchools=[], setMissionSchools=()=>{}, schoolsSyncStatus="local" }) {
   const [view, setView]             = useState("dashboard");
   const [sel, setSel]               = useState(null);
   const [filter, setFilter]         = useState("ALL");
@@ -777,14 +778,27 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local",
 
         {/* Nav */}
         <div style={{ display:"flex", gap:2 }}>
-          {["dashboard","timelines","missions"].map(v => (
-            <button key={v} onClick={()=>setView(v)} style={{
+          {[
+            { id:"dashboard", label:"Dashboard" },
+            { id:"timelines", label:"Timelines" },
+            { id:"missions",  label:"Missions" },
+            { id:"schools",   label:"Schools", badge: missionSchools.length || null },
+          ].map(({ id, label, badge }) => (
+            <button key={id} onClick={()=>setView(id)} style={{
               padding: mobile ? "5px 10px" : "5px 14px", borderRadius:20, border:"none", cursor:"pointer",
-              background:view===v?"#0f172a":"transparent",
-              color:view===v?"#fff":"#64748b",
-              fontSize: mobile ? 11 : 12, fontWeight:view===v?600:400, fontFamily:"inherit",
-              textTransform:"capitalize",
-            }}>{v}</button>
+              background:view===id?"#0f172a":"transparent",
+              color:view===id?"#fff":"#64748b",
+              fontSize: mobile ? 11 : 12, fontWeight:view===id?600:400, fontFamily:"inherit",
+              display:"flex", alignItems:"center", gap:5,
+            }}>
+              {label}
+              {badge ? (
+                <span style={{ background:view===id?"#3b82f6":"#e2e8f0", color:view===id?"#fff":"#64748b",
+                  borderRadius:10, fontSize:9, fontWeight:700, padding:"1px 6px", lineHeight:1.6 }}>
+                  {badge}
+                </span>
+              ) : null}
+            </button>
           ))}
         </div>
 
@@ -889,6 +903,8 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local",
         <Dashboard themes={themes} onNavigateToProject={handleNavigateToProject} />
       ) : view==="missions" ? (
         <Missions missions={missions} setMissions={setMissions} syncStatus={missionsSyncStatus} />
+      ) : view==="schools" ? (
+        <SchoolsTab missions={missions} missionSchools={missionSchools} setMissionSchools={setMissionSchools} />
       ) : (
         <div style={{ flex:1,overflowX:"auto",paddingBottom:60 }}>
           <div style={{ minWidth:LBL+MONTHS.length*COL+40 }}>
