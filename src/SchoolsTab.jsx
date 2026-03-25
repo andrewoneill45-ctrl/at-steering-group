@@ -508,7 +508,7 @@ function ClusterPanel({ missionSchools, setMissionSchools, missions, selectedMis
 }
 
 // ─── Main SchoolsTab ──────────────────────────────────────────────────────────
-export default function SchoolsTab({ missions, missionSchools, setMissionSchools }) {
+export default function SchoolsTab({ missions, missionSchools, setMissionSchools, schoolsSyncStatus="local" }) {
   const [schools,setSchools]=useState([]);
   const [loading,setLoading]=useState(true);
   const [filtered,setFiltered]=useState([]);
@@ -602,7 +602,7 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
       missionId:   missionId|| null,
       addedAt:     new Date().toISOString(),
     };
-    setMissionSchools([...missionSchools, newSchool]);
+    setMissionSchools(prev => [...(Array.isArray(prev)?prev:[]), newSchool]);
     setPopup(null);
   };
 
@@ -650,6 +650,14 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
         {Object.keys(activeFilters).length>0&&<button onClick={clearSearch} style={{ ...BS("#94a3b8"),padding:"5px 10px" }}>✕ Clear</button>}
         <div style={{ fontSize:10,color:"#94a3b8",whiteSpace:"nowrap" }}>
           {loading?"Loading…":`${filtered.length.toLocaleString()} / ${schools.length.toLocaleString()} schools`}
+        </div>
+        <div style={{
+          fontSize:10, fontFamily:"monospace", padding:"3px 10px", borderRadius:20, flexShrink:0,
+          border:`1px solid ${schoolsSyncStatus==="synced"?"#bbf7d0":schoolsSyncStatus==="saving"?"#fde68a":schoolsSyncStatus==="error"?"#fecaca":"#e2e8f0"}`,
+          color:schoolsSyncStatus==="synced"?"#15803d":schoolsSyncStatus==="saving"?"#92400e":schoolsSyncStatus==="error"?"#991b1b":"#94a3b8",
+          background:"#fff",
+        }}>
+          {schoolsSyncStatus==="synced"?"✓ Saved":schoolsSyncStatus==="saving"?"● Saving…":schoolsSyncStatus==="error"?"✗ Error — check Supabase":"○ Local"}
         </div>
       </div>
 

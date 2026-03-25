@@ -906,7 +906,7 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local",
       ) : view==="missions" ? (
         <Missions missions={missions} setMissions={setMissions} syncStatus={missionsSyncStatus} />
       ) : view==="schools" ? (
-        <SchoolsTab missions={missions} missionSchools={missionSchools} setMissionSchools={setMissionSchools} />
+        <SchoolsTab missions={missions} missionSchools={missionSchools} setMissionSchools={setMissionSchools} schoolsSyncStatus={schoolsSyncStatus} />
       ) : view==="missiondash" ? (
         <MissionDashboard missions={missions} missionSchools={missionSchools} themes={themes} />
       ) : (
