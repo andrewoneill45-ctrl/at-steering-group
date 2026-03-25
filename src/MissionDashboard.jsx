@@ -11,7 +11,17 @@ const PHASE_COLORS = { "Secondary":"#3b82f6","Primary":"#10b981","Special":"#f59
 const OFSTED_COLORS = { "Outstanding":"#6366f1","Good":"#16a34a","Requires improvement":"#d97706","Inadequate":"#dc2626" };
 
 function avg(arr, key) {
-  const v = arr.map(s=>+s[key]).filter(n=>!isNaN(n)&&n!==0);
+  const v = arr.map(s => parseFloat(s[key])).filter(n => !isNaN(n) && n !== 0 && n !== null);
+  return v.length ? +(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1) : null;
+}
+
+// Try multiple field name variants for key metrics
+function getAtt8(s)  { return parseFloat(s.attainment8 || s.att8) || null; }
+function getP8(s)    { return parseFloat(s.progress8   || s.p8)   || null; }
+function getFSM(s)   { return parseFloat(s.fsm_pct || s.edu_fsm_pct || s.ks4_fsm_pct) || null; }
+
+function avgMetric(arr, fn) {
+  const v = arr.map(fn).filter(n => n !== null && !isNaN(n) && n !== 0);
   return v.length ? +(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1) : null;
 }
 
@@ -155,9 +165,9 @@ function GanttSignals({ themes, missions, missionSchools }) {
 function MissionCard({ mission, schools, onNavigate }) {
   const s = schools.filter(x=>x.missionId===mission.id);
   const clusters = [...new Set(s.map(x=>x.cluster).filter(Boolean))];
-  const avgFSM  = avg(s,"fsm_pct");
-  const avgP8   = avg(s,"progress8");
-  const avgAtt8 = avg(s,"attainment8");
+  const avgFSM  = avgMetric(s, getFSM);
+  const avgP8   = avgMetric(s, getP8);
+  const avgAtt8 = avgMetric(s, getAtt8);
 
   return (
     <div style={{ background:"#fff", borderRadius:12, border:`1px solid ${mission.color}44`, overflow:"hidden", boxShadow:"0 1px 4px rgba(0,0,0,0.06)" }}>
@@ -231,9 +241,9 @@ export default function MissionDashboard({ missions, missionSchools, themes }) {
   const [activeTab, setActiveTab] = useState("overview");
 
   const totalSchools = missionSchools.length;
-  const allAvgFSM  = avg(missionSchools,"fsm_pct");
-  const allAvgP8   = avg(missionSchools,"progress8");
-  const allAvgAtt8 = avg(missionSchools,"attainment8");
+  const allAvgFSM  = avgMetric(missionSchools, getFSM);
+  const allAvgP8   = avgMetric(missionSchools, getP8);
+  const allAvgAtt8 = avgMetric(missionSchools, getAtt8);
   const allClusters = [...new Set(missionSchools.map(s=>s.cluster).filter(Boolean))];
 
   // Gantt health
@@ -242,7 +252,7 @@ export default function MissionDashboard({ missions, missionSchools, themes }) {
   const amberCount = allProjects.filter(p=>p.rag==="A").length;
   const greenCount = allProjects.filter(p=>p.rag==="G").length;
 
-  if (!missions.length && !missionSchools.length) return (
+  if (!missions.length) return (
     <div style={{ flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:"#64748b",fontFamily:"'Outfit','Segoe UI',sans-serif" }}>
       <div style={{ fontSize:40 }}>🗺</div>
       <div style={{ fontWeight:700,color:"#0f172a",fontSize:16 }}>No mission data yet</div>
@@ -348,7 +358,7 @@ export default function MissionDashboard({ missions, missionSchools, themes }) {
               <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(320px,1fr))",gap:16 }}>
                 {allClusters.map(cl=>{
                   const cs=missionSchools.filter(s=>s.cluster===cl);
-                  const cFSM=avg(cs,"fsm_pct"),cP8=avg(cs,"progress8"),cAtt8=avg(cs,"attainment8");
+                  const cFSM=avgMetric(cs,getFSM),cP8=avgMetric(cs,getP8),cAtt8=avgMetric(cs,getAtt8);
                   const mission=missions.find(m=>m.id===cs[0]?.missionId);
                   return(
                     <div key={cl} style={{ background:"#fff",borderRadius:12,border:"1px solid #e8ecf0",overflow:"hidden",boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
@@ -373,7 +383,7 @@ export default function MissionDashboard({ missions, missionSchools, themes }) {
                           {cs.map(s=>(
                             <div key={s.urn} style={{ fontSize:10,color:"#374151",padding:"2px 0",borderBottom:"1px solid #f8fafc",display:"flex",justifyContent:"space-between" }}>
                               <span style={{ overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1 }}>{s.name}</span>
-                              {s.progress8&&<span style={{ color:+s.progress8>=0?"#16a34a":"#dc2626",fontWeight:600,flexShrink:0,marginLeft:6 }}>P8 {+s.progress8>0?"+":""}{s.progress8}</span>}
+                              {(s.progress8||s.p8)&&<span style={{ color:+(s.progress8||s.p8)>=0?"#16a34a":"#dc2626",fontWeight:600,flexShrink:0,marginLeft:6 }}>P8 {+(s.progress8||s.p8)>0?"+":""}{s.progress8||s.p8}</span>}
                             </div>
                           ))}
                         </div>

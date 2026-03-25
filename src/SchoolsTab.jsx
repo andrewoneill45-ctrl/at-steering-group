@@ -175,12 +175,19 @@ function toGeoJSON(schools, missionUrns) {
 // ─── Stats helper ─────────────────────────────────────────────────────────────
 function summariseSchools(schools) {
   if (!schools.length) return { phases:"—",avgFSM:"—",avgAtt8:"—",avgP8:"—",ofsted:"—",avgSEN:"—",avgPupils:"—" };
-  const avg = (arr,key) => { const v=arr.map(s=>+s[key]).filter(n=>!isNaN(n)&&n!==0); return v.length?(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1):"n/a"; };
+  const avgField = (arr, ...keys) => {
+    const v = arr.map(s => { for(const k of keys){ const n=parseFloat(s[k]); if(!isNaN(n)&&n!==0) return n; } return null; }).filter(n=>n!==null);
+    return v.length ? (v.reduce((a,b)=>a+b,0)/v.length).toFixed(1) : "n/a";
+  };
   const phases = [...new Set(schools.map(s=>s.phase).filter(Boolean))].join(", ");
   const oc = schools.reduce((acc,s)=>{ if(s.ofsted) acc[s.ofsted]=(acc[s.ofsted]||0)+1; return acc; },{});
   return { phases, ofsted:Object.entries(oc).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k}: ${v}`).join(" · "),
-    avgFSM:avg(schools,"fsm_pct"), avgAtt8:avg(schools,"attainment8"), avgP8:avg(schools,"progress8"),
-    avgSEN:avg(schools,"sen_pct"), avgPupils:avg(schools,"pupils") };
+    avgFSM:   avgField(schools,"fsm_pct","edu_fsm_pct","ks4_fsm_pct"),
+    avgAtt8:  avgField(schools,"attainment8","att8"),
+    avgP8:    avgField(schools,"progress8","p8"),
+    avgSEN:   avgField(schools,"sen_pct"),
+    avgPupils:avgField(schools,"pupils"),
+  };
 }
 
 // ─── AI cluster analysis ──────────────────────────────────────────────────────
@@ -195,7 +202,7 @@ async function aiClusterAnalysis(clusterName, schools, allMissionSchools) {
 
 // ─── Performance bar component ────────────────────────────────────────────────
 function PerfBar({ label, value, max, color, suffix="" }) {
-  if (!value || isNaN(+value)) return null;
+  if (value === null || value === undefined || value === "" || isNaN(+value)) return null;
   const pct = Math.min(100, (+value / max) * 100);
   return (
     <div style={{ marginBottom:8 }}>
@@ -264,39 +271,44 @@ function SchoolPopup({ school, missionSchools, missions, onAdd, onRemove, onClos
         </div>
 
         {/* Performance */}
-        {(isSecondary && (school.attainment8 || school.progress8)) && (
-          <div style={{ marginBottom:10 }}>
-            <div style={{ ...LS, marginBottom:6 }}>KS4 Performance</div>
-            <PerfBar label="Attainment 8" value={school.attainment8} max={80} color="#3b82f6"/>
-            {school.progress8 && (
-              <div style={{ marginBottom:8 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
-                  <span style={{ fontSize:10, color:"#64748b" }}>Progress 8</span>
-                  <span style={{ fontSize:11, fontWeight:700, color:+school.progress8>=0?"#16a34a":"#dc2626" }}>{+school.progress8>0?"+":""}{school.progress8}</span>
+        {(() => {
+          // Try multiple field name variants
+          const att8  = school.attainment8 || school.att8;
+          const p8    = school.progress8   || school.p8;
+          const basics= school.basics_94   || school.basics;
+          const ks2   = school.ks2_rwm_exp;
+          const read  = school.ks2_read_avg;
+          if (isSecondary && (att8 || p8)) return (
+            <div style={{ marginBottom:10 }}>
+              <div style={{ ...LS, marginBottom:6 }}>KS4 Performance (2024)</div>
+              {att8 && <PerfBar label="Attainment 8" value={att8} max={80} color="#3b82f6"/>}
+              {p8 && (
+                <div style={{ marginBottom:8 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
+                    <span style={{ fontSize:10, color:"#64748b" }}>Progress 8</span>
+                    <span style={{ fontSize:11, fontWeight:700, color:+p8>=0?"#16a34a":"#dc2626" }}>{+p8>0?"+":""}{p8}</span>
+                  </div>
+                  <div style={{ height:6, background:"#f1f5f9", borderRadius:3, overflow:"hidden", position:"relative" }}>
+                    <div style={{ position:"absolute", left:"50%", top:0, width:1, height:"100%", background:"#cbd5e1", zIndex:1 }}/>
+                    <div style={{ position:"absolute", height:"100%",
+                      left: +p8>=0?"50%":`${50+(+p8/3)*50}%`,
+                      width:`${Math.abs(+p8/3)*50}%`,
+                      background:+p8>=0?"#16a34a":"#dc2626", borderRadius:3 }}/>
+                  </div>
                 </div>
-                <div style={{ height:6, background:"#f1f5f9", borderRadius:3, overflow:"hidden", position:"relative" }}>
-                  <div style={{ position:"absolute", left:"50%", top:0, width:1, height:"100%", background:"#cbd5e1", zIndex:1 }}/>
-                  <div style={{
-                    position:"absolute", height:"100%",
-                    left: +school.progress8 >= 0 ? "50%" : `${50 + (+school.progress8/3)*50}%`,
-                    width: `${Math.abs(+school.progress8/3)*50}%`,
-                    background: +school.progress8>=0?"#16a34a":"#dc2626",
-                    borderRadius:3,
-                  }}/>
-                </div>
-              </div>
-            )}
-            {school.basics_94 && <div style={{ fontSize:10, color:"#64748b" }}>Basics 9-4: <strong>{school.basics_94}%</strong></div>}
-          </div>
-        )}
-
-        {(isPrimary && school.ks2_rwm_exp) && (
-          <div style={{ marginBottom:10 }}>
-            <div style={{ ...LS, marginBottom:6 }}>KS2 Performance</div>
-            <PerfBar label="RWM Expected %" value={school.ks2_rwm_exp} max={100} color="#10b981" suffix="%"/>
-            {school.ks2_read_avg && <PerfBar label="Reading Score" value={school.ks2_read_avg} max={120} color="#3b82f6"/>}
-          </div>
-        )}
+              )}
+              {basics && <div style={{ fontSize:10, color:"#64748b", marginTop:4 }}>Basics 9-4: <strong style={{ color:"#374151" }}>{basics}%</strong></div>}
+            </div>
+          );
+          if ((isPrimary || !isSecondary) && (ks2 || read)) return (
+            <div style={{ marginBottom:10 }}>
+              <div style={{ ...LS, marginBottom:6 }}>KS2 Performance (2024)</div>
+              {ks2 && <PerfBar label="RWM Expected %" value={ks2} max={100} color="#10b981" suffix="%"/>}
+              {read && <PerfBar label="Reading Score" value={read} max={120} color="#3b82f6"/>}
+            </div>
+          );
+          return <div style={{ fontSize:10, color:"#94a3b8", fontStyle:"italic", marginBottom:8 }}>No performance data available for this school.</div>;
+        })()}
 
         {/* Mission assignment */}
         {!assigned ? (
@@ -560,16 +572,37 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
 
   const addToMission=(school,missionId,cluster)=>{
     if(missionSchools.find(ms=>ms.urn===school.urn)) return;
-    setMissionSchools(p=>[...p,{
-      urn:school.urn, name:school.name, la:school.la, phase:school.phase,
-      ofsted:school.ofsted, type:school.type,
-      fsm_pct:school.fsm_pct||school.edu_fsm_pct,
-      attainment8:school.attainment8, progress8:school.progress8,
-      ks2_rwm_exp:school.ks2_rwm_exp, sen_pct:school.sen_pct,
-      eal_pct:school.eal_pct, pupils:school.pupils,
-      lat:school.latitude, lon:school.longitude,
-      cluster:cluster||null, missionId:missionId||null,
-    }]);
+    // Try all known field name variants from different data sources
+    const newSchool = {
+      urn:         school.urn,
+      name:        school.name,
+      la:          school.la || school.la_name,
+      phase:       school.phase,
+      ofsted:      school.ofsted,
+      type:        school.type,
+      // FSM — try multiple field names
+      fsm_pct:     school.edu_fsm_pct || school.fsm_pct || school.ks4_fsm_pct || null,
+      // KS4 attainment
+      attainment8: school.attainment8 || school.att8 || null,
+      progress8:   school.progress8   || school.p8   || null,
+      basics_94:   school.basics_94   || school.basics || null,
+      // KS2
+      ks2_rwm_exp: school.ks2_rwm_exp || null,
+      ks2_read_avg:school.ks2_read_avg || null,
+      // Context
+      sen_pct:     school.sen_pct  || null,
+      eal_pct:     school.eal_pct  || null,
+      pupils:      school.pupils   || null,
+      capacity:    school.capacity || null,
+      trust_name:  school.trust_name || school.trust || null,
+      address:     school.address  || null,
+      lat:         school.latitude || school.lat,
+      lon:         school.longitude|| school.lon,
+      cluster:     cluster  || null,
+      missionId:   missionId|| null,
+      addedAt:     new Date().toISOString(),
+    };
+    setMissionSchools([...missionSchools, newSchool]);
     setPopup(null);
   };
 
