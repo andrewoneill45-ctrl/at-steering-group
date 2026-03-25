@@ -599,7 +599,7 @@ export default function Missions({missions,setMissions,syncStatus}){
                                     const ms=weekMode?{id:newId,name:"",weekMonth:Math.max(0,todayIdx),month:TODAY_IDX,color:"#f59e0b",notes:""}:{id:newId,name:"",month:TODAY_IDX,color:"#f59e0b",notes:""};
                                     updSR(mission.id,sl.id,sr.id,r=>({...r,milestones:[...(r.milestones||[]),ms]}));
                                     setSel({type:"milestone",mid:mission.id,slid:sl.id,srid:sr.id,itemId:newId,autoFocus:true});
-                                  }} style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:4,color:"#d97706",cursor:"pointer",fontSize:10,padding:"1px 4px",fontFamily:"monospace",lineHeight:1.5,flexShrink:0}} title="Add milestone">◆</button>
+                                  }} style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:4,color:"#d97706",cursor:"pointer",fontSize:10,padding:"1px 4px",fontFamily:"monospace",lineHeight:1.5,flexShrink:0}}>◆</button>
                                 </div>
                                 {/* Timeline — drag to create */}
                                 <div
