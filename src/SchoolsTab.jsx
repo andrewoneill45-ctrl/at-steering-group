@@ -59,7 +59,7 @@ async function callClaude(system, userMsg, maxTokens=800) {
 }
 
 async function aiParseSearch(query, schools) {
-  const sampleLAs = [...new Set(schools.map(s=>s.la_name).filter(Boolean))].slice(0,40);
+  const sampleLAs = [...new Set(schools.map(s=>s.la).filter(Boolean))].slice(0,40);
   const system = `You are a search filter parser for English schools data. Convert the query into a JSON filter object.
 
 Keys: phase ("Primary"|"Secondary"|"Special"|"All-through"), ofsted ("Outstanding"|"Good"|"Requires improvement"|"Inadequate"), 
@@ -132,7 +132,7 @@ function SchoolPopup({ school, missionSchools, onAdd, onRemove, onClose }) {
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
         <div style={{ flex:1, paddingRight:6 }}>
           <div style={{ fontWeight:700, color:"#0f172a", fontSize:13, lineHeight:1.3 }}>{school.name}</div>
-          <div style={{ color:"#64748b", fontSize:10, marginTop:2 }}>{school.la_name} · {school.phase}</div>
+          <div style={{ color:"#64748b", fontSize:10, marginTop:2 }}>{school.la} · {school.phase}</div>
         </div>
         <button onClick={onClose} style={{ background:"none", border:"none", color:"#94a3b8", cursor:"pointer", fontSize:18, padding:"0 2px", lineHeight:1 }}>×</button>
       </div>
@@ -311,7 +311,7 @@ function SchoolRow({ school, clusters, currentCluster, onAssign, onRemove }) {
         onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
         <span style={{ width:8, height:8, borderRadius:"50%", background:ofstedColor(school.ofsted), flexShrink:0 }}/>
         <span style={{ flex:1, fontSize:11, fontWeight:600, color:"#0f172a", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{school.name}</span>
-        <span style={{ fontSize:10, color:"#94a3b8", flexShrink:0 }}>{school.la_name}</span>
+        <span style={{ fontSize:10, color:"#94a3b8", flexShrink:0 }}>{school.la}</span>
         <span style={{ fontSize:9, color:"#cbd5e1" }}>{expanded?"▲":"▼"}</span>
       </div>
       {expanded && (
@@ -374,7 +374,7 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
     let result = allSchools;
     if (fs.phase)      result = result.filter(s => s.phase === fs.phase);
     if (fs.ofsted)     result = result.filter(s => s.ofsted === fs.ofsted);
-    if (fs.la)         result = result.filter(s => s.la_name?.toLowerCase().includes(fs.la));
+    if (fs.la)         result = result.filter(s => s.la?.toLowerCase().includes(fs.la));
     if (fs.name)       result = result.filter(s => s.name?.toLowerCase().includes(fs.name.toLowerCase()));
     if (fs.minFSM != null)        result = result.filter(s => +s.fsm_pct >= fs.minFSM);
     if (fs.maxFSM != null)        result = result.filter(s => +s.fsm_pct <= fs.maxFSM);
@@ -401,7 +401,7 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
     setMissionSchools(p => [...p, {
       urn: school.urn,
       name: school.name,
-      la_name: school.la_name,
+      la_name: school.la,
       phase: school.phase,
       ofsted: school.ofsted,
       fsm_pct: school.fsm_pct,
@@ -409,8 +409,8 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
       progress8: school.progress8,
       sen_pct: school.sen_pct,
       pupils: school.pupils,
-      lat: school.lat,
-      lon: school.lon,
+      lat: school.latitude,
+      lon: school.longitude,
       address: school.address,
       cluster: null,
       missionId: selectedMissionId,
@@ -497,15 +497,15 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
 
             {/* Regular school markers */}
             {filtered.map(school => {
-              if (!school.lat || !school.lon) return null;
+              if (!school.latitude || !school.longitude) return null;
               const isMission = missionUrns.has(school.urn);
               const color = isMission ? "#6366f1" : phaseColor(school.phase);
               const size  = isMission ? 12 : 6;
               return (
                 <Marker
                   key={school.urn}
-                  latitude={+school.lat}
-                  longitude={+school.lon}
+                  latitude={+school.latitude}
+                  longitude={+school.longitude}
                   onClick={e => { e.originalEvent.stopPropagation(); setPopup(school); }}
                 >
                   <div style={{
@@ -527,8 +527,8 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
             {/* Popup */}
             {popup && (
               <Popup
-                latitude={+popup.lat}
-                longitude={+popup.lon}
+                latitude={+popup.latitude}
+                longitude={+popup.longitude}
                 onClose={() => setPopup(null)}
                 closeButton={false}
                 closeOnClick={false}
