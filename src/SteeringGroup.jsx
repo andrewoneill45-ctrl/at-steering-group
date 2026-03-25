@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import Missions from "./Missions.jsx";
 import SchoolsTab from "./SchoolsTab.jsx";
+import MissionDashboard from "./MissionDashboard.jsx";
 import {
   ALL_MONTHS, TODAY_IDX, RAG, PALETTE, ZOOM_LEVELS, uid, ragWorst,
   POLICY_SUMMARIES, INITIAL_THEMES
@@ -783,6 +784,7 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local",
             { id:"timelines", label:"Timelines" },
             { id:"missions",  label:"Missions" },
             { id:"schools",   label:"Schools", badge: missionSchools.length || null },
+            { id:"missiondash", label:"Mission Dashboard" },
           ].map(({ id, label, badge }) => (
             <button key={id} onClick={()=>setView(id)} style={{
               padding: mobile ? "5px 10px" : "5px 14px", borderRadius:20, border:"none", cursor:"pointer",
@@ -905,6 +907,8 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local",
         <Missions missions={missions} setMissions={setMissions} syncStatus={missionsSyncStatus} />
       ) : view==="schools" ? (
         <SchoolsTab missions={missions} missionSchools={missionSchools} setMissionSchools={setMissionSchools} />
+      ) : view==="missiondash" ? (
+        <MissionDashboard missions={missions} missionSchools={missionSchools} themes={themes} />
       ) : (
         <div style={{ flex:1,overflowX:"auto",paddingBottom:60 }}>
           <div style={{ minWidth:LBL+MONTHS.length*COL+40 }}>
