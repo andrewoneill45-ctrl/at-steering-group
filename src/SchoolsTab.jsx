@@ -184,7 +184,7 @@ function applyFilters(fs, schools) {
 }
 
 // ─── GeoJSON conversion ───────────────────────────────────────────────────────
-function toGeoJSON(schools, missionUrns, phaseLinkedUrns=new Set()) {
+function toGeoJSON(schools, missionUrns, phaseLinkedUrns=new Set(), clusterMap=new Map()) {
   return {
     type:"FeatureCollection",
     features: schools.filter(s=>s.latitude&&s.longitude).map(s=>({
@@ -196,6 +196,7 @@ function toGeoJSON(schools, missionUrns, phaseLinkedUrns=new Set()) {
         isPhaseLinked:phaseLinkedUrns.has(s.urn)?1:0,
         imd_decile: s.imd_decile || 0,
         imd_rank:   s.imd_rank   || 0,
+        cluster: clusterMap.get(s.urn) || "",
       },
     })),
   };
@@ -637,7 +638,12 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
     return new Set(phase?.schoolUrns||[]);
   },[selectedPhaseId,missions]);
 
-  const geoJSON=useMemo(()=>toGeoJSON(filtered,missionUrns,phaseLinkedUrns),[filtered,missionUrns,phaseLinkedUrns]);
+  const clusterMap=useMemo(()=>{
+    const m=new Map();
+    missionSchools.forEach(s=>{ if(s.cluster) m.set(s.urn, s.cluster); });
+    return m;
+  },[missionSchools]);
+  const geoJSON=useMemo(()=>toGeoJSON(filtered,missionUrns,phaseLinkedUrns,clusterMap),[filtered,missionUrns,phaseLinkedUrns,clusterMap]);
 
   // IMD stats for currently filtered schools
   const imdStats = useMemo(()=>{
@@ -853,6 +859,22 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
                     "circle-radius":["interpolate",["linear"],["zoom"],5,8,8,11,11,14],
                     "circle-color": mapMode==="imd" ? IMD_COLOR_EXPR : "#6366f1",
                     "circle-opacity":1,"circle-stroke-width":3,"circle-stroke-color":"#fff",
+                  }}
+                />
+                {/* Cluster label on mission school dots */}
+                <Layer id="schools-mission-label" type="symbol"
+                  filter={["all",["==",["get","isMission"],1],["!=",["get","cluster"],""]]}
+                  layout={{
+                    "text-field": ["get","cluster"],
+                    "text-size": 8,
+                    "text-font": ["DIN Offc Pro Bold","Arial Unicode MS Bold"],
+                    "text-allow-overlap": true,
+                    "text-ignore-placement": true,
+                  }}
+                  paint={{
+                    "text-color": "#ffffff",
+                    "text-halo-color": "#6366f1",
+                    "text-halo-width": 0.5,
                   }}
                 />
                 {selectedPhaseId&&(
