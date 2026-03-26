@@ -570,7 +570,7 @@ function Dashboard({ themes, onNavigateToProject }) {
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function SteeringGroup({ themes, setThemes, syncStatus = "local", missions=[], setMissions=()=>{}, missionsSyncStatus="local", missionSchools=[], setMissionSchools=()=>{}, schoolsSyncStatus="local" }) {
-  const [view, setView]             = useState("dashboard");
+  const [view, setView]             = useState("missiondash");
   const [sel, setSel]               = useState(null);
   const [filter, setFilter]         = useState("ALL");
   const [zoomIdx, setZoomIdx]       = useState(0);
@@ -771,8 +771,8 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local",
             color:"#fff", fontSize: mobile?11:13, fontWeight:700, flexShrink:0 }}>AT</div>
           {!mobile && (
             <div>
-              <div style={{ fontSize:13, fontWeight:700, color:"#0f172a", lineHeight:1 }}>Achieve & Thrive 2026</div>
-              <div style={{ fontSize:10, color:"#94a3b8", lineHeight:1, marginTop:2 }}>Steering Group</div>
+              <div style={{ fontSize:13, fontWeight:700, color:"#0f172a", lineHeight:1 }}>Missions</div>
+              <div style={{ fontSize:10, color:"#94a3b8", lineHeight:1, marginTop:2 }}>Achieve & Thrive 2026</div>
             </div>
           )}
         </div>
@@ -780,11 +780,9 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local",
         {/* Nav */}
         <div style={{ display:"flex", gap:2 }}>
           {[
-            { id:"dashboard", label:"Dashboard" },
-            { id:"timelines", label:"Timelines" },
-            { id:"missions",  label:"Missions" },
-            { id:"schools",   label:"Schools", badge: missionSchools.length || null },
-            { id:"missiondash", label:"Mission Dashboard" },
+            { id:"missiondash", label:"Overview" },
+            { id:"missions",    label:"Mission Planner" },
+            { id:"schools",     label:"Schools", badge: missionSchools.length || null },
           ].map(({ id, label, badge }) => (
             <button key={id} onClick={()=>setView(id)} style={{
               padding: mobile ? "5px 10px" : "5px 14px", borderRadius:20, border:"none", cursor:"pointer",
@@ -804,23 +802,7 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local",
           ))}
         </div>
 
-        {/* Undo / Redo */}
-        <div style={{ display:"flex", gap:2, marginLeft: mobile ? 6 : 10 }}>
-          {[
-            { label:"↩", title:"Undo", action:doUndo, enabled:canUndo },
-            { label:"↪", title:"Redo", action:doRedo, enabled:canRedo },
-          ].map(({label,title,action,enabled}) => (
-            <button key={title} onClick={action} title={title} disabled={!enabled} style={{
-              width: mobile ? 30 : 32, height: mobile ? 30 : 32,
-              borderRadius:8, border:"1px solid #e2e8f0",
-              background: enabled ? "#fff" : "#f8fafc",
-              color: enabled ? "#374151" : "#cbd5e1",
-              cursor: enabled ? "pointer" : "default",
-              fontSize:15, fontFamily:"inherit", display:"flex",
-              alignItems:"center", justifyContent:"center",
-            }}>{label}</button>
-          ))}
-        </div>
+
 
         {/* Zoom — hidden on mobile */}
         {(view==="timelines"||view==="missions") && !mobile && (
@@ -838,8 +820,7 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local",
           </div>
         )}
 
-        {/* Collapse / Expand All — timelines only */}
-        {view==="timelines" && !mobile && (
+                {view==="timelines" && !mobile && (
           <button onClick={allCollapsed ? expandAll : collapseAll} style={{
             marginLeft:10, padding:"3px 11px", borderRadius:16, cursor:"pointer",
             border:"1px solid #e2e8f0", background:"#fff", color:"#64748b",
@@ -880,35 +861,12 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local",
       </div>
 
       {/* Mobile zoom bar */}
-      {view==="timelines" && mobile && (
-        <div style={{ background:"#fff", borderBottom:"1px solid #f1f5f9", padding:"7px 12px", display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
-          <span style={{ fontSize:10, color:"#94a3b8", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.08em" }}>Zoom</span>
-          {ZOOM_LEVELS.map((z,i) => (
-            <button key={i} onClick={()=>setZoomIdx(i)} style={{
-              padding:"5px 12px", borderRadius:16, minHeight:32,
-              border:`1px solid ${i===zoomIdx?"#3b82f6":"#e2e8f0"}`,
-              background:i===zoomIdx?"#eff6ff":"#fff",
-              color:i===zoomIdx?"#1d4ed8":"#64748b",
-              fontSize:12, cursor:"pointer", fontFamily:"inherit", fontWeight:i===zoomIdx?700:400,
-            }}>{z.label}</button>
-          ))}
-          <button onClick={allCollapsed ? expandAll : collapseAll} style={{
-            marginLeft:"auto", padding:"5px 10px", borderRadius:16, cursor:"pointer",
-            border:"1px solid #e2e8f0", background:"#fff", color:"#64748b",
-            fontSize:11, fontFamily:"inherit",
-          }}>{allCollapsed ? "▼ Expand" : "▶ Collapse"}</button>
-        </div>
-      )}
-
-      {/* Content */}
-      {view==="dashboard" ? (
-        <Dashboard themes={themes} onNavigateToProject={handleNavigateToProject} />
+            {view==="missiondash" ? (
+        <MissionDashboard missions={missions} missionSchools={missionSchools} themes={themes} />
       ) : view==="missions" ? (
         <Missions missions={missions} setMissions={setMissions} syncStatus={missionsSyncStatus} />
       ) : view==="schools" ? (
         <SchoolsTab missions={missions} missionSchools={missionSchools} setMissionSchools={setMissionSchools} schoolsSyncStatus={schoolsSyncStatus} />
-      ) : view==="missiondash" ? (
-        <MissionDashboard missions={missions} missionSchools={missionSchools} themes={themes} />
       ) : (
         <div style={{ flex:1,overflowX:"auto",paddingBottom:60 }}>
           <div style={{ minWidth:LBL+MONTHS.length*COL+40 }}>
