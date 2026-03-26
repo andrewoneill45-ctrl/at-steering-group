@@ -268,27 +268,24 @@ function SchoolPopup({ school, missionSchools, missions, onAdd, onRemove, onClos
   };
 
   return (
-    <div style={{ fontFamily:"'Outfit','Segoe UI',sans-serif", width:300, maxHeight:"80vh", overflowY:"auto" }}>
+    <div style={{ fontFamily:"'Outfit','Segoe UI',sans-serif", width:620, maxHeight:"92vh", overflowY:"auto", display:"flex", flexDirection:"column" }}>
       {/* Header */}
-      <div style={{ background:`linear-gradient(135deg,${pc}22,${pc}08)`, borderBottom:`2px solid ${pc}`, padding:"12px 14px 10px", position:"relative" }}>
+      <div style={{ background:`linear-gradient(135deg,${pc}22,${pc}08)`, borderBottom:`2px solid ${pc}`, padding:"10px 14px 8px", position:"relative", flexShrink:0 }}>
         <button onClick={onClose} style={{ position:"absolute",top:8,right:8,background:"none",border:"none",color:"#94a3b8",cursor:"pointer",fontSize:18,lineHeight:1,padding:"2px 5px" }}>×</button>
-        <div style={{ fontSize:13, fontWeight:700, color:"#0f172a", lineHeight:1.3, marginBottom:6, paddingRight:20 }}>{school.name}</div>
-        <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
+        <div style={{ fontSize:13, fontWeight:700, color:"#0f172a", lineHeight:1.3, marginBottom:4, paddingRight:20 }}>{school.name}</div>
+        <div style={{ display:"flex", gap:5, flexWrap:"wrap", alignItems:"center" }}>
           <span style={{ fontSize:10, background:`${pc}22`, color:pc, border:`1px solid ${pc}55`, borderRadius:10, padding:"2px 8px", fontWeight:600 }}>{school.phase}</span>
           {school.ofsted && <span style={{ fontSize:10, background:`${oc}22`, color:oc, border:`1px solid ${oc}55`, borderRadius:10, padding:"2px 8px", fontWeight:600 }}>{school.ofsted}</span>}
           {school.type && <span style={{ fontSize:10, background:"#f1f5f9", color:"#64748b", borderRadius:10, padding:"2px 8px" }}>{school.type}</span>}
+          {school.la && <span style={{ fontSize:10, color:"#94a3b8" }}>📍 {school.la}</span>}
+          {school.pupils && <span style={{ fontSize:10, color:"#94a3b8" }}>👥 {school.pupils} pupils</span>}
         </div>
       </div>
 
-      <div style={{ padding:"10px 14px" }}>
-        {/* Context */}
-        <div style={{ fontSize:11, color:"#64748b", marginBottom:10, lineHeight:1.7 }}>
-          {school.la && <div>📍 {school.la}</div>}
-          {school.address && <div style={{ fontSize:10, color:"#94a3b8" }}>{school.address}</div>}
-          {school.pupils && <div>👥 {school.pupils} pupils{school.capacity ? ` (capacity ${school.capacity})` : ""}</div>}
-          {school.trust_name && <div>🏫 {school.trust_name}</div>}
-        </div>
-
+      {/* Two-column body */}
+      <div style={{ display:"flex", flex:1, overflow:"hidden" }}>
+      {/* Left column — data */}
+      <div style={{ flex:1, padding:"10px 12px", overflowY:"auto", borderRight:"1px solid #f1f5f9" }}>
         {/* IMD Deprivation */}
         {school.imd_decile && (
           <div style={{ marginBottom:10 }}>
@@ -382,6 +379,17 @@ function SchoolPopup({ school, missionSchools, missions, onAdd, onRemove, onClos
           return <div style={{ fontSize:10, color:"#94a3b8", fontStyle:"italic", marginBottom:8 }}>No performance data available for this school.</div>;
         })()}
 
+      </div>{/* end left column */}
+
+      {/* Right column — mission */}
+      <div style={{ width:210, padding:"10px 12px", overflowY:"auto", background:"#fafbfc", flexShrink:0 }}>
+        {/* Context details */}
+        <div style={{ fontSize:10, color:"#64748b", marginBottom:8, lineHeight:1.7 }}>
+          {school.address && <div style={{ fontSize:9, color:"#94a3b8" }}>{school.address}</div>}
+          {school.trust_name && <div>🏫 {school.trust_name}</div>}
+          {school.capacity && <div>Capacity: {school.capacity}</div>}
+        </div>
+
         {/* Mission assignment */}
         {!assigned ? (
           <div style={{ borderTop:"1px solid #f1f5f9", paddingTop:10 }}>
@@ -438,7 +446,8 @@ function SchoolPopup({ school, missionSchools, missions, onAdd, onRemove, onClos
               style={{ ...BS("#dc2626"), width:"100%", padding:"6px" }}>Remove from mission</button>
           </div>
         )}
-      </div>
+      </div>{/* end right column */}
+      </div>{/* end two-column body */}
     </div>
   );
 }
@@ -860,7 +869,7 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
             {popup&&(
               <Popup latitude={popup.lat} longitude={popup.lng}
                 onClose={()=>setPopup(null)} closeButton={false} closeOnClick={false}
-                anchor="bottom" offset={12} maxWidth="320px">
+                anchor="bottom" offset={12} maxWidth="640px">
                 <SchoolPopup
                   school={popup.school} missionSchools={missionSchools} missions={missions}
                   onAdd={addToMission} onRemove={removeFromMission} onClose={()=>setPopup(null)}
