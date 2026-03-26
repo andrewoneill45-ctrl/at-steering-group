@@ -5,6 +5,7 @@
 
 import { useState, useMemo } from "react";
 import { RAG, ALL_MONTHS, TODAY_IDX } from "./data.js";
+import BriefingGenerator from "./BriefingGenerator.jsx";
 
 const LS = { fontSize:9, letterSpacing:"0.13em", textTransform:"uppercase", color:"#94a3b8", fontWeight:700, marginBottom:5 };
 const PHASE_COLORS = { "Secondary":"#3b82f6","Primary":"#10b981","Special":"#f59e0b","All-through":"#8b5cf6","default":"#94a3b8" };
@@ -380,6 +381,8 @@ export default function MissionDashboard({ missions, missionSchools, themes }) {
 
         {/* Tab: Mission Overview */}
         {activeTab==="overview"&&(
+          <div style={{ display:"flex",flexDirection:"column",gap:20 }}>
+          <BriefingGenerator missions={missions} missionSchools={missionSchools} themes={themes}/>
           <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(380px,1fr))",gap:20 }}>
             {missions.map(mission=>(
               <MissionCard key={mission.id} mission={mission} schools={missionSchools}/>
@@ -396,6 +399,7 @@ export default function MissionDashboard({ missions, missionSchools, themes }) {
                 </div>
               </div>
             )}
+          </div>
           </div>
         )}
 
