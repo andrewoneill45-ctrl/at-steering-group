@@ -268,37 +268,37 @@ function SchoolPopup({ school, missionSchools, missions, onAdd, onRemove, onClos
   };
 
   return (
-    <div style={{ fontFamily:"'Outfit','Segoe UI',sans-serif", width:620, maxHeight:"92vh", overflowY:"auto", display:"flex", flexDirection:"column" }}>
+    <div style={{ fontFamily:"'Outfit','Segoe UI',sans-serif", width:560, display:"flex", flexDirection:"column", maxHeight:"85vh" }}>
       {/* Header */}
-      <div style={{ background:`linear-gradient(135deg,${pc}22,${pc}08)`, borderBottom:`2px solid ${pc}`, padding:"10px 14px 8px", position:"relative", flexShrink:0 }}>
-        <button onClick={onClose} style={{ position:"absolute",top:8,right:8,background:"none",border:"none",color:"#94a3b8",cursor:"pointer",fontSize:18,lineHeight:1,padding:"2px 5px" }}>×</button>
-        <div style={{ fontSize:13, fontWeight:700, color:"#0f172a", lineHeight:1.3, marginBottom:4, paddingRight:20 }}>{school.name}</div>
-        <div style={{ display:"flex", gap:5, flexWrap:"wrap", alignItems:"center" }}>
-          <span style={{ fontSize:10, background:`${pc}22`, color:pc, border:`1px solid ${pc}55`, borderRadius:10, padding:"2px 8px", fontWeight:600 }}>{school.phase}</span>
-          {school.ofsted && <span style={{ fontSize:10, background:`${oc}22`, color:oc, border:`1px solid ${oc}55`, borderRadius:10, padding:"2px 8px", fontWeight:600 }}>{school.ofsted}</span>}
-          {school.type && <span style={{ fontSize:10, background:"#f1f5f9", color:"#64748b", borderRadius:10, padding:"2px 8px" }}>{school.type}</span>}
-          {school.la && <span style={{ fontSize:10, color:"#94a3b8" }}>📍 {school.la}</span>}
-          {school.pupils && <span style={{ fontSize:10, color:"#94a3b8" }}>👥 {school.pupils} pupils</span>}
+      <div style={{ background:`linear-gradient(135deg,${pc}22,${pc}08)`, borderBottom:`2px solid ${pc}`, padding:"8px 10px 6px", position:"relative", flexShrink:0 }}>
+        <button onClick={onClose} style={{ position:"absolute",top:6,right:6,background:"none",border:"none",color:"#94a3b8",cursor:"pointer",fontSize:16,lineHeight:1,padding:"2px 4px" }}>×</button>
+        <div style={{ fontSize:12, fontWeight:700, color:"#0f172a", lineHeight:1.3, marginBottom:3, paddingRight:18 }}>{school.name}</div>
+        <div style={{ display:"flex", gap:4, flexWrap:"wrap", alignItems:"center" }}>
+          <span style={{ fontSize:9, background:`${pc}22`, color:pc, border:`1px solid ${pc}55`, borderRadius:8, padding:"1px 6px", fontWeight:600 }}>{school.phase}</span>
+          {school.ofsted && <span style={{ fontSize:9, background:`${oc}22`, color:oc, border:`1px solid ${oc}55`, borderRadius:8, padding:"1px 6px", fontWeight:600 }}>{school.ofsted}</span>}
+          {school.type && <span style={{ fontSize:9, background:"#f1f5f9", color:"#64748b", borderRadius:8, padding:"1px 6px" }}>{school.type}</span>}
+          {school.la && <span style={{ fontSize:9, color:"#94a3b8" }}>📍 {school.la}</span>}
+          {school.pupils && <span style={{ fontSize:9, color:"#94a3b8" }}>👥 {school.pupils}</span>}
         </div>
       </div>
 
       {/* Two-column body */}
-      <div style={{ display:"flex", flex:1, overflow:"hidden" }}>
+      <div style={{ display:"flex", flex:1, overflow:"hidden", minHeight:0 }}>
       {/* Left column — data */}
-      <div style={{ flex:1, padding:"10px 12px", overflowY:"auto", borderRight:"1px solid #f1f5f9" }}>
+      <div style={{ flex:1, padding:"8px 10px", overflowY:"auto", borderRight:"1px solid #f1f5f9" }}>
         {/* IMD Deprivation */}
         {school.imd_decile && (
-          <div style={{ marginBottom:10 }}>
-            <div style={{ ...LS, marginBottom:6 }}>Place Deprivation (IMD 2019)</div>
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
+          <div style={{ marginBottom:8 }}>
+            <div style={{ ...LS, marginBottom:4 }}>Place Deprivation (IMD 2019)</div>
+            <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:4 }}>
               <div style={{
-                width:36, height:36, borderRadius:8, flexShrink:0,
+                width:28, height:28, borderRadius:6, flexShrink:0,
                 background: IMD_COLORS[school.imd_decile] || "#94a3b8",
                 display:"flex", alignItems:"center", justifyContent:"center",
-                color:"#fff", fontWeight:800, fontSize:16,
+                color:"#fff", fontWeight:800, fontSize:13,
               }}>{school.imd_decile}</div>
               <div>
-                <div style={{ fontSize:12, fontWeight:700, color:"#0f172a" }}>
+                <div style={{ fontSize:11, fontWeight:700, color:"#0f172a" }}>
                   Decile {school.imd_decile} — {school.imd_decile<=2?"Most deprived":school.imd_decile<=4?"More deprived":school.imd_decile<=6?"Average":school.imd_decile<=8?"Less deprived":"Least deprived"}
                 </div>
                 {school.imd_rank && <div style={{ fontSize:10, color:"#64748b" }}>Rank {school.imd_rank.toLocaleString()} of 32,844 LSOAs</div>}
@@ -329,7 +329,7 @@ function SchoolPopup({ school, missionSchools, missions, onAdd, onRemove, onClos
         )}
 
         {/* Contextual data */}
-        <div style={{ background:"#f8fafc", borderRadius:8, padding:"8px 10px", marginBottom:10 }}>
+        <div style={{ background:"#f8fafc", borderRadius:6, padding:"6px 8px", marginBottom:8 }}>
           <div style={{ ...LS, marginBottom:6 }}>School Context</div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"4px 12px" }}>
             {school.fsm_pct && <div style={{ fontSize:11 }}><span style={{ color:"#94a3b8" }}>FSM </span><span style={{ fontWeight:700, color:"#d97706" }}>{school.fsm_pct}%</span></div>}
@@ -348,8 +348,8 @@ function SchoolPopup({ school, missionSchools, missions, onAdd, onRemove, onClos
           const ks2   = school.ks2_rwm_exp;
           const read  = school.ks2_read_avg;
           if (isSecondary && (att8 || p8)) return (
-            <div style={{ marginBottom:10 }}>
-              <div style={{ ...LS, marginBottom:6 }}>KS4 Performance (2024)</div>
+            <div style={{ marginBottom:8 }}>
+              <div style={{ ...LS, marginBottom:4 }}>KS4 Performance (2024)</div>
               {att8 && <PerfBar label="Attainment 8" value={att8} max={80} color="#3b82f6"/>}
               {p8 && (
                 <div style={{ marginBottom:8 }}>
@@ -370,8 +370,8 @@ function SchoolPopup({ school, missionSchools, missions, onAdd, onRemove, onClos
             </div>
           );
           if ((isPrimary || !isSecondary) && (ks2 || read)) return (
-            <div style={{ marginBottom:10 }}>
-              <div style={{ ...LS, marginBottom:6 }}>KS2 Performance (2024)</div>
+            <div style={{ marginBottom:8 }}>
+              <div style={{ ...LS, marginBottom:4 }}>KS2 Performance (2024)</div>
               {ks2 && <PerfBar label="RWM Expected %" value={ks2} max={100} color="#10b981" suffix="%"/>}
               {read && <PerfBar label="Reading Score" value={read} max={120} color="#3b82f6"/>}
             </div>
@@ -382,9 +382,9 @@ function SchoolPopup({ school, missionSchools, missions, onAdd, onRemove, onClos
       </div>{/* end left column */}
 
       {/* Right column — mission */}
-      <div style={{ width:210, padding:"10px 12px", overflowY:"auto", background:"#fafbfc", flexShrink:0 }}>
+      <div style={{ width:190, padding:"8px 10px", overflowY:"auto", background:"#fafbfc", flexShrink:0 }}>
         {/* Context details */}
-        <div style={{ fontSize:10, color:"#64748b", marginBottom:8, lineHeight:1.7 }}>
+        <div style={{ fontSize:9, color:"#64748b", marginBottom:6, lineHeight:1.6 }}>
           {school.address && <div style={{ fontSize:9, color:"#94a3b8" }}>{school.address}</div>}
           {school.trust_name && <div>🏫 {school.trust_name}</div>}
           {school.capacity && <div>Capacity: {school.capacity}</div>}
@@ -869,7 +869,7 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
             {popup&&(
               <Popup latitude={popup.lat} longitude={popup.lng}
                 onClose={()=>setPopup(null)} closeButton={false} closeOnClick={false}
-                anchor="bottom" offset={12} maxWidth="640px">
+                anchor="bottom" offset={12} maxWidth="580px">
                 <SchoolPopup
                   school={popup.school} missionSchools={missionSchools} missions={missions}
                   onAdd={addToMission} onRemove={removeFromMission} onClose={()=>setPopup(null)}
