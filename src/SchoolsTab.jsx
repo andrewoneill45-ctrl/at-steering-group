@@ -184,14 +184,16 @@ function applyFilters(fs, schools) {
 }
 
 // ─── GeoJSON conversion ───────────────────────────────────────────────────────
-function toGeoJSON(schools, missionUrns) {
+function toGeoJSON(schools, missionUrns, phaseLinkedUrns=new Set()) {
   return {
     type:"FeatureCollection",
     features: schools.filter(s=>s.latitude&&s.longitude).map(s=>({
       type:"Feature",
       geometry:{ type:"Point", coordinates:[+s.longitude,+s.latitude] },
       properties:{
-        urn:s.urn, phase:s.phase||"Other", isMission:missionUrns.has(s.urn)?1:0,
+        urn:s.urn, phase:s.phase||"Other",
+        isMission:missionUrns.has(s.urn)?1:0,
+        isPhaseLinked:phaseLinkedUrns.has(s.urn)?1:0,
         imd_decile: s.imd_decile || 0,
         imd_rank:   s.imd_rank   || 0,
       },
@@ -418,6 +420,20 @@ function SchoolPopup({ school, missionSchools, missions, onAdd, onRemove, onClos
                 {assigned.cluster ? ` · ${assigned.cluster}` : " · unassigned cluster"}
               </div>
             </div>
+            {(()=>{
+              const linkedPhases=missions.flatMap(m=>m.swimlanes.flatMap(sl=>(sl.subrows||[]).flatMap(sr=>(sr.phases||[]).filter(p=>(p.schoolUrns||[]).includes(school.urn)).map(p=>({...p,slName:sl.name})))));
+              if(!linkedPhases.length) return null;
+              return(<div style={{marginBottom:8,padding:"6px 10px",background:"#fffbeb",borderRadius:8,border:"1px solid #fde68a"}}>
+                <div style={{fontSize:9,color:"#92400e",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4}}>In {linkedPhases.length} delivery phase{linkedPhases.length>1?"s":""}</div>
+                {linkedPhases.map(p=>(
+                  <div key={p.id} style={{fontSize:10,color:"#78350f",display:"flex",alignItems:"center",gap:4,marginBottom:2}}>
+                    <span style={{width:6,height:6,borderRadius:1,background:p.color,display:"inline-block",flexShrink:0}}/>
+                    <span style={{fontWeight:600}}>{p.name}</span>
+                    <span style={{color:"#d97706",fontSize:9}}>· {p.slName}</span>
+                  </div>
+                ))}
+              </div>);
+            })()}
             <button onClick={()=>onRemove(school.urn)}
               style={{ ...BS("#dc2626"), width:"100%", padding:"6px" }}>Remove from mission</button>
           </div>
@@ -578,7 +594,7 @@ function ClusterPanel({ missionSchools, setMissionSchools, missions, selectedMis
 }
 
 // ─── Main SchoolsTab ──────────────────────────────────────────────────────────
-export default function SchoolsTab({ missions, missionSchools, setMissionSchools, schoolsSyncStatus="local" }) {
+export default function SchoolsTab({ missions, missionSchools, setMissionSchools, schoolsSyncStatus="local", selectedPhaseId=null }) {
   const [schools,setSchools]=useState([]);
   const [loading,setLoading]=useState(true);
   const [filtered,setFiltered]=useState([]);
@@ -604,7 +620,15 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
   },[]);
 
   const missionUrns=useMemo(()=>new Set(missionSchools.map(s=>s.urn)),[missionSchools]);
-  const geoJSON=useMemo(()=>toGeoJSON(filtered,missionUrns),[filtered,missionUrns]);
+
+  const phaseLinkedUrns=useMemo(()=>{
+    if(!selectedPhaseId) return new Set();
+    const allPhases=missions.flatMap(m=>m.swimlanes.flatMap(sl=>(sl.subrows||[]).flatMap(sr=>sr.phases||[])));
+    const phase=allPhases.find(p=>p.id===selectedPhaseId);
+    return new Set(phase?.schoolUrns||[]);
+  },[selectedPhaseId,missions]);
+
+  const geoJSON=useMemo(()=>toGeoJSON(filtered,missionUrns,phaseLinkedUrns),[filtered,missionUrns,phaseLinkedUrns]);
 
   // IMD stats for currently filtered schools
   const imdStats = useMemo(()=>{
@@ -762,6 +786,14 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
       </div>
 
       {/* Search result / examples */}
+      {selectedPhaseId&&(()=>{
+        const allPhases=missions.flatMap(m=>m.swimlanes.flatMap(sl=>(sl.subrows||[]).flatMap(sr=>sr.phases||[])));
+        const phase=allPhases.find(p=>p.id===selectedPhaseId);
+        if(!phase) return null;
+        return(<div style={{padding:"5px 16px",background:"#fffbeb",borderBottom:"1px solid #fde68a",fontSize:11,color:"#92400e",fontWeight:500,display:"flex",alignItems:"center",gap:8}}>
+          <span>🏫 {phaseLinkedUrns.size} schools linked to: <strong>{phase.name}</strong></span>
+        </div>);
+      })()}
       {searchExplain ? (
         <div style={{ padding:"5px 16px",background:"#eef2ff",borderBottom:"1px solid #e0e7ff",fontSize:11,color:"#4f46e5",fontWeight:500 }}>{searchExplain}</div>
       ) : !loading && schools.length>0 && (
@@ -793,7 +825,7 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
             mapboxAccessToken={MAPBOX_TOKEN} mapStyle="mapbox://styles/mapbox/light-v11"
             style={{ width:"100%",height:"100%" }}
             onClick={onMapClick} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}
-            interactiveLayerIds={["schools-circles","schools-mission"]}
+            interactiveLayerIds={["schools-circles","schools-mission","schools-phase-linked"]}
           >
             <NavigationControl position="top-right"/>
             {!loading&&geoJSON.features.length>0&&(
@@ -814,6 +846,15 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
                     "circle-opacity":1,"circle-stroke-width":3,"circle-stroke-color":"#fff",
                   }}
                 />
+                {selectedPhaseId&&(
+                  <Layer id="schools-phase-linked" type="circle" filter={["==",["get","isPhaseLinked"],1]}
+                    paint={{
+                      "circle-radius":["interpolate",["linear"],["zoom"],5,10,8,14,11,18],
+                      "circle-color":"#f59e0b","circle-opacity":1,
+                      "circle-stroke-width":3,"circle-stroke-color":"#fff",
+                    }}
+                  />
+                )}
               </Source>
             )}
             {popup&&(

@@ -572,6 +572,7 @@ function Dashboard({ themes, onNavigateToProject }) {
 export default function SteeringGroup({ themes, setThemes, syncStatus = "local", missions=[], setMissions=()=>{}, missionsSyncStatus="local", missionSchools=[], setMissionSchools=()=>{}, schoolsSyncStatus="local" }) {
   const [view, setView]             = useState("missiondash");
   const [sel, setSel]               = useState(null);
+  const [selectedPhaseId, setSelectedPhaseId] = useState(null);
   const [filter, setFilter]         = useState("ALL");
   const [zoomIdx, setZoomIdx]       = useState(0);
   const [addingPhase, setAddingPhase]     = useState(null);
@@ -864,9 +865,11 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local",
             {view==="missiondash" ? (
         <MissionDashboard missions={missions} missionSchools={missionSchools} themes={themes} />
       ) : view==="missions" ? (
-        <Missions missions={missions} setMissions={setMissions} syncStatus={missionsSyncStatus} />
+        <Missions missions={missions} setMissions={setMissions} syncStatus={missionsSyncStatus}
+          missionSchools={missionSchools}
+          onPhaseSelect={sel => setHighlightedPhaseUrns(sel?.schoolUrns || null)} />
       ) : view==="schools" ? (
-        <SchoolsTab missions={missions} missionSchools={missionSchools} setMissionSchools={setMissionSchools} schoolsSyncStatus={schoolsSyncStatus} />
+        <SchoolsTab missions={missions} missionSchools={missionSchools} setMissionSchools={setMissionSchools} schoolsSyncStatus={schoolsSyncStatus} highlightedUrns={highlightedPhaseUrns} />
       ) : (
         <div style={{ flex:1,overflowX:"auto",paddingBottom:60 }}>
           <div style={{ minWidth:LBL+MONTHS.length*COL+40 }}>

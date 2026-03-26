@@ -259,6 +259,24 @@ function MissionCard({ mission, schools, onNavigate }) {
 
         <IMDProfile schools={s} title="Place Deprivation Profile"/>
 
+        {/* Delivery phase breakdown */}
+        {(()=>{
+          const phases=mission.swimlanes.flatMap(sl=>(sl.subrows||[]).flatMap(sr=>(sr.phases||[]).filter(p=>(p.schoolUrns||[]).length>0)));
+          if(!phases.length) return null;
+          return(
+            <div style={{marginTop:10}}>
+              <div style={{...LS,marginBottom:6}}>School-to-Phase Assignments</div>
+              {phases.map(p=>(
+                <div key={p.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:"1px solid #f8fafc"}}>
+                  <span style={{width:8,height:8,borderRadius:2,background:p.color,flexShrink:0}}/>
+                  <span style={{flex:1,fontSize:11,color:"#374151",fontWeight:600}}>{p.name}</span>
+                  <span style={{fontSize:10,background:"#eef2ff",color:"#4f46e5",borderRadius:10,padding:"1px 7px",fontWeight:700}}>🏫 {p.schoolUrns.length}</span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+
         {s.length===0&&(
           <div style={{ fontSize:11,color:"#94a3b8",fontStyle:"italic" }}>No schools assigned to this mission yet — go to the Schools tab to add them.</div>
         )}

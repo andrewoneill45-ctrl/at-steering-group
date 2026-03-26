@@ -174,7 +174,7 @@ function DepLines({mission,rowMap,COL,LBL,weekMode}){
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
-export default function Missions({missions,setMissions,syncStatus}){
+export default function Missions({missions,setMissions,syncStatus,missionSchools=[],selectedPhaseId,setSelectedPhaseId}){
   const w=useWindowWidth(),mobile=w<640,tablet=w<900;
   const [zoomIdx,setZoomIdx]=useState(4); // default 2 Yrs
   const [sel,setSel]=useState(null);
@@ -437,7 +437,57 @@ export default function Missions({missions,setMissions,syncStatus}){
             </div>
           </>)}
           <TF label="Notes" value={phase.notes||""} onChange={v=>handleUpdate("phase",{mid:sel.mid,slid:sel.slid,srid:sel.srid,itemId:sel.itemId},"notes",v)} rows={3}/>
-          <div style={{marginBottom:14}}><FL>Add Dependency Arrow</FL>
+                    {/* School linking */}
+          {(()=>{
+            const phaseSchools=(phase.schoolUrns||[]);
+            const missionId=mission.id;
+            const assignedSchools=missionSchools.filter(ms=>ms.missionId===missionId);
+            const allPhaseUrns=new Set(mission.swimlanes.flatMap(sl2=>(sl2.subrows||[]).flatMap(sr2=>(sr2.phases||[]).flatMap(p2=>p2.id!==phase.id?(p2.schoolUrns||[]):[]))));
+            const suggested=assignedSchools.filter(s=>!allPhaseUrns.has(s.urn)&&!phaseSchools.includes(s.urn));
+            const linked=missionSchools.filter(s=>phaseSchools.includes(s.urn));
+            const toggleSchool=(urn)=>{
+              const next=phaseSchools.includes(urn)?phaseSchools.filter(u=>u!==urn):[...phaseSchools,urn];
+              handleUpdate("phase",{mid:sel.mid,slid:sel.slid,srid:sel.srid,itemId:sel.itemId},"schoolUrns",next);
+            };
+            return(
+              <div style={{marginBottom:14}}>
+                <FL>Linked Schools ({phaseSchools.length})</FL>
+                {linked.length>0&&(
+                  <div style={{maxHeight:120,overflowY:"auto",marginBottom:8}}>
+                    {linked.map(s=>(
+                      <div key={s.urn} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 0",borderBottom:"1px solid #f8fafc"}}>
+                        <span style={{flex:1,fontSize:11,color:"#0f172a",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</span>
+                        <span style={{fontSize:10,color:"#94a3b8",flexShrink:0}}>{s.la}</span>
+                        <button onClick={()=>toggleSchool(s.urn)} style={{background:"none",border:"none",color:"#dc2626",cursor:"pointer",fontSize:14,padding:"0 2px",flexShrink:0}}>×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {suggested.length>0&&(
+                  <div>
+                    <div style={{fontSize:9,color:"#94a3b8",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4}}>Suggested from {mission.name}</div>
+                    <div style={{maxHeight:100,overflowY:"auto"}}>
+                      {suggested.slice(0,10).map(s=>(
+                        <div key={s.urn} onClick={()=>toggleSchool(s.urn)}
+                          style={{display:"flex",alignItems:"center",gap:6,padding:"4px 8px",marginBottom:2,borderRadius:6,background:"#f8fafc",cursor:"pointer",border:"1px solid #f1f5f9"}}
+                          onMouseEnter={e=>e.currentTarget.style.background="#eef2ff"}
+                          onMouseLeave={e=>e.currentTarget.style.background="#f8fafc"}>
+                          <span style={{fontSize:10,color:"#6366f1",fontWeight:700,flexShrink:0}}>+</span>
+                          <span style={{flex:1,fontSize:11,color:"#374151",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</span>
+                          <span style={{fontSize:9,color:"#94a3b8",flexShrink:0}}>{s.cluster||s.la}</span>
+                        </div>
+                      ))}
+                      {suggested.length>10&&<div style={{fontSize:10,color:"#94a3b8",padding:"2px 8px"}}>+{suggested.length-10} more</div>}
+                    </div>
+                  </div>
+                )}
+                {assignedSchools.length===0&&phaseSchools.length===0&&(
+                  <div style={{fontSize:11,color:"#94a3b8",fontStyle:"italic"}}>Add schools to {mission.name} via the Schools tab first.</div>
+                )}
+              </div>
+            );
+          })()}
+<div style={{marginBottom:14}}><FL>Add Dependency Arrow</FL>
             <button onClick={()=>{setAddingDep({missionId:sel.mid,fromId:sel.itemId});setSel(null);}} style={{...BS("#6366f1"),width:"100%"}}>⬡ Draw arrow from this phase</button>
           </div>
           <div style={{paddingTop:16,borderTop:"1px solid #f1f5f9"}}>
@@ -634,10 +684,11 @@ export default function Missions({missions,setMissions,syncStatus}){
                                         style={{position:"absolute",left:ps*COL+2,width:Math.max(bw,24),top:8,height:SUB_ROW_H-16,background:`linear-gradient(90deg,${phase.color}ee,${phase.color}99)`,border:`1px solid ${phase.color}`,borderLeft:`3px solid ${RAG[phase.rag].color}`,borderRadius:6,cursor:"grab",display:"flex",alignItems:"center",overflow:"hidden",boxShadow:isSel2?`0 0 0 2px ${RAG[phase.rag].color},0 2px 8px rgba(0,0,0,0.15)`:isDF?`0 0 0 3px #6366f1`:"0 1px 4px rgba(0,0,0,0.1)",userSelect:"none",zIndex:isSel2?5:2,touchAction:"none"}}
                                         onMouseDown={e=>{e.stopPropagation();if(addingDep)return;handleDrag(e,mission.id,sl.id,sr.id,phase,"move");}}
                                         onTouchStart={e=>{e.stopPropagation();if(addingDep)return;handleDrag(e,mission.id,sl.id,sr.id,phase,"move");}}
-                                        onClick={e=>{e.stopPropagation();if(addingDep?.missionId===mission.id){doAddDep(mission.id,phase.id);return;}setSel(isSel2?null:{type:"phase",mid:mission.id,slid:sl.id,srid:sr.id,itemId:phase.id});}}
+                                        onClick={e=>{e.stopPropagation();if(addingDep?.missionId===mission.id){doAddDep(mission.id,phase.id);return;}const newSel=isSel2?null:{type:"phase",mid:mission.id,slid:sl.id,srid:sr.id,itemId:phase.id};setSel(newSel);setSelectedPhaseId(newSel?phase.id:null);if(onPhaseSelect)onPhaseSelect(newSel?{phaseId:phase.id,schoolUrns:phase.schoolUrns||[]}:null);}}
                                       >
                                         <div onMouseDown={e=>{e.stopPropagation();if(!addingDep)handleDrag(e,mission.id,sl.id,sr.id,phase,"left");}} style={{position:"absolute",left:0,top:0,width:mobile?14:7,height:"100%",cursor:"ew-resize",zIndex:3,touchAction:"none"}}/>
                                         <span style={{fontSize:11,color:"#fff",padding:"0 10px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",pointerEvents:"none",textShadow:"0 1px 2px rgba(0,0,0,0.35)",flex:1,fontWeight:500}}>{phase.name}</span>
+                                        {(phase.schoolUrns?.length>0)&&<span style={{fontSize:9,marginRight:6,flexShrink:0,pointerEvents:"none",background:"rgba(255,255,255,0.25)",borderRadius:8,padding:"1px 5px",fontWeight:700}}>🏫 {phase.schoolUrns.length}</span>}
                                         {phase.notes&&<span style={{fontSize:9,marginRight:6,flexShrink:0,pointerEvents:"none",opacity:0.85}}>📝</span>}
                                         <div onMouseDown={e=>{e.stopPropagation();if(!addingDep)handleDrag(e,mission.id,sl.id,sr.id,phase,"right");}} style={{position:"absolute",right:0,top:0,width:mobile?14:7,height:"100%",cursor:"ew-resize",zIndex:3,touchAction:"none"}}/>
                                       </div>
