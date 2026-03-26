@@ -869,7 +869,7 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local",
           missionSchools={missionSchools}
           onPhaseSelect={sel => setHighlightedPhaseUrns(sel?.schoolUrns || null)} />
       ) : view==="schools" ? (
-        <SchoolsTab missions={missions} missionSchools={missionSchools} setMissionSchools={setMissionSchools} schoolsSyncStatus={schoolsSyncStatus} highlightedUrns={highlightedPhaseUrns} />
+        <SchoolsTab missions={missions} missionSchools={missionSchools} setMissionSchools={setMissionSchools} schoolsSyncStatus={schoolsSyncStatus} selectedPhaseId={selectedPhaseId} />
       ) : (
         <div style={{ flex:1,overflowX:"auto",paddingBottom:60 }}>
           <div style={{ minWidth:LBL+MONTHS.length*COL+40 }}>
