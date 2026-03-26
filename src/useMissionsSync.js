@@ -6,16 +6,25 @@ const MISSIONS_ROW = "achieve-thrive-missions";
 const SCHOOLS_ROW  = "achieve-thrive-schools";
 const POLL_MS      = 5000;
 
-// Direct save — no debounce, no hooks, just upsert
 async function saveRow(rowId, value) {
-  console.log(`[sync] Saving ${rowId}, items: ${Array.isArray(value) ? value.length : "n/a"}`);
+  if (!supabase) { console.error("[sync] No supabase client"); return false; }
+  console.log(`[sync] Saving ${rowId}...`);
+  
+  // Use UPDATE since rows already exist
   const { error } = await supabase
     .from("programmes")
-    .upsert({ id: rowId, data: value }, { onConflict: "id" });
+    .update({ data: value })
+    .eq("id", rowId);
+    
   if (error) {
-    console.error(`[sync] Save failed for ${rowId}:`, error);
-    return false;
+    console.error(`[sync] Update failed, trying upsert:`, error);
+    // Fallback to upsert
+    const { error: err2 } = await supabase
+      .from("programmes")
+      .upsert({ id: rowId, data: value });
+    if (err2) { console.error(`[sync] Upsert also failed:`, err2); return false; }
   }
+  
   console.log(`[sync] Saved ${rowId} OK`);
   return true;
 }
@@ -23,10 +32,10 @@ async function saveRow(rowId, value) {
 function useRowSync(rowId, initial) {
   const [data,       setData]       = useState(initial);
   const [syncStatus, setSyncStatus] = useState("local");
-  const dataRef     = useRef(initial); // tracks latest value outside React cycle
+  const dataRef = useRef(initial);
 
-  // Load once on mount
   useEffect(() => {
+    if (!supabase) return;
     (async () => {
       setSyncStatus("loading");
       try {
@@ -46,8 +55,8 @@ function useRowSync(rowId, initial) {
     })();
   }, [rowId]);
 
-  // Poll every 5s
   useEffect(() => {
+    if (!supabase) return;
     const id = setInterval(async () => {
       try {
         const { data: row, error } = await supabase
@@ -62,24 +71,14 @@ function useRowSync(rowId, initial) {
     return () => clearInterval(id);
   }, [rowId]);
 
-  // Setter: resolves updater fn, updates state immediately, saves to Supabase
   const setAndSave = useCallback((updater) => {
-    // Resolve next value synchronously
     const next = typeof updater === "function"
       ? updater(dataRef.current)
       : updater;
-
-    // Update ref immediately so rapid successive calls stack correctly
     dataRef.current = next;
-
-    // Update React state
     setData(next);
-
-    // Save to Supabase (async, fire and forget with status updates)
     setSyncStatus("saving");
-    saveRow(rowId, next).then(ok => {
-      setSyncStatus(ok ? "synced" : "error");
-    });
+    saveRow(rowId, next).then(ok => setSyncStatus(ok ? "synced" : "error"));
   }, [rowId]);
 
   return { data, setData: setAndSave, syncStatus };
