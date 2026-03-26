@@ -8,6 +8,7 @@ import { RAG, ALL_MONTHS, TODAY_IDX } from "./data.js";
 
 const LS = { fontSize:9, letterSpacing:"0.13em", textTransform:"uppercase", color:"#94a3b8", fontWeight:700, marginBottom:5 };
 const PHASE_COLORS = { "Secondary":"#3b82f6","Primary":"#10b981","Special":"#f59e0b","All-through":"#8b5cf6","default":"#94a3b8" };
+const IMD_COLORS = [null,"#7f0000","#b30000","#d7301f","#ef6548","#fc8d59","#fdbb84","#a1d99b","#74c476","#41ab5d","#006d2c"];
 const OFSTED_COLORS = { "Outstanding":"#6366f1","Good":"#16a34a","Requires improvement":"#d97706","Inadequate":"#dc2626" };
 
 function avg(arr, key) {
@@ -23,6 +24,34 @@ function getFSM(s)   { return parseFloat(s.fsm_pct || s.edu_fsm_pct || s.ks4_fsm
 function avgMetric(arr, fn) {
   const v = arr.map(fn).filter(n => n !== null && !isNaN(n) && n !== 0);
   return v.length ? +(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1) : null;
+}
+
+function IMDProfile({ schools, title }) {
+  if (!schools.length) return null;
+  const withIMD = schools.filter(s=>s.imd_decile);
+  if (!withIMD.length) return null;
+  const counts = Array(11).fill(0);
+  withIMD.forEach(s => { if(s.imd_decile) counts[s.imd_decile]++; });
+  const mostDep = withIMD.filter(s=>s.imd_decile<=2).length;
+  const pctMost = Math.round(mostDep/withIMD.length*100);
+  return (
+    <div style={{ marginTop:10 }}>
+      <div style={{ ...LS, marginBottom:6 }}>{title || "IMD Deprivation Profile"}</div>
+      <div style={{ display:"flex",gap:2,height:16,borderRadius:6,overflow:"hidden",marginBottom:4 }}>
+        {[1,2,3,4,5,6,7,8,9,10].map(d=>(
+          <div key={d} title={`Decile ${d}: ${counts[d]} schools`}
+            style={{ flex:counts[d]||0.1, background:IMD_COLORS[d], transition:"flex 0.3s", cursor:"default" }}/>
+        ))}
+      </div>
+      <div style={{ display:"flex",justifyContent:"space-between",fontSize:9,color:"#94a3b8",marginBottom:4 }}>
+        <span>Most deprived</span><span>Least deprived</span>
+      </div>
+      <div style={{ display:"flex",gap:12,fontSize:10,flexWrap:"wrap" }}>
+        <span style={{ color:"#dc2626",fontWeight:600 }}>{pctMost}% in most deprived 20%</span>
+        <span style={{ color:"#64748b" }}>{withIMD.length} schools with IMD data</span>
+      </div>
+    </div>
+  );
 }
 
 function MetricCard({ label, value, sub, color, small }) {
@@ -228,6 +257,8 @@ function MissionCard({ mission, schools, onNavigate }) {
           </div>
         )}
 
+        <IMDProfile schools={s} title="Place Deprivation Profile"/>
+
         {s.length===0&&(
           <div style={{ fontSize:11,color:"#94a3b8",fontStyle:"italic" }}>No schools assigned to this mission yet — go to the Schools tab to add them.</div>
         )}
@@ -283,9 +314,9 @@ export default function MissionDashboard({ missions, missionSchools, themes }) {
             {allAvgAtt8!=null&&<MetricCard label="Avg Att8" value={allAvgAtt8} color="#3b82f6"/>}
           </div>
 
-          {/* Overall phase + Ofsted */}
+          {/* Overall phase + Ofsted + IMD */}
           {missionSchools.length>0&&(
-            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:8 }}>
+            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginBottom:8 }}>
               <div style={{ background:"#fff",borderRadius:10,border:"1px solid #e8ecf0",padding:"12px 16px" }}>
                 <div style={LS}>Phase Profile</div>
                 <PhaseBar schools={missionSchools}/>
@@ -293,6 +324,9 @@ export default function MissionDashboard({ missions, missionSchools, themes }) {
               <div style={{ background:"#fff",borderRadius:10,border:"1px solid #e8ecf0",padding:"12px 16px" }}>
                 <div style={LS}>Ofsted Profile</div>
                 <OfstedBar schools={missionSchools}/>
+              </div>
+              <div style={{ background:"#fff",borderRadius:10,border:"1px solid #e8ecf0",padding:"12px 16px" }}>
+                <IMDProfile schools={missionSchools} title="Place Deprivation (IMD)"/>
               </div>
             </div>
           )}

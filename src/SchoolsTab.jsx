@@ -15,6 +15,29 @@ const BS = bg => ({ background:bg+"18", border:`1px solid ${bg}66`, borderRadius
 const LS = { fontSize:9, letterSpacing:"0.13em", textTransform:"uppercase", color:"#94a3b8", fontWeight:700, marginBottom:5 };
 
 const PHASE_COLORS = { "Secondary":"#3b82f6","Primary":"#10b981","Special":"#f59e0b","All-through":"#8b5cf6","default":"#94a3b8" };
+
+// IMD decile colours — decile 1 (most deprived) = dark red, 10 (least) = dark green
+const IMD_COLORS = [
+  null,          // 0 = no data
+  "#7f0000",     // 1 most deprived
+  "#b30000",
+  "#d7301f",
+  "#ef6548",
+  "#fc8d59",
+  "#fdbb84",     // 6
+  "#a1d99b",
+  "#74c476",
+  "#41ab5d",
+  "#006d2c",     // 10 least deprived
+];
+
+// Mapbox expression for IMD colour by decile
+const IMD_COLOR_EXPR = [
+  "match", ["get","imd_decile"],
+  1,"#7f0000", 2,"#b30000", 3,"#d7301f", 4,"#ef6548", 5,"#fc8d59",
+  6,"#fdbb84", 7,"#a1d99b", 8,"#74c476", 9,"#41ab5d", 10,"#006d2c",
+  "#cbd5e1"
+];
 const OFSTED_COLORS = { "Outstanding":"#6366f1","Good":"#16a34a","Requires improvement":"#d97706","Inadequate":"#dc2626" };
 
 // ─── Claude API ───────────────────────────────────────────────────────────────
@@ -167,7 +190,11 @@ function toGeoJSON(schools, missionUrns) {
     features: schools.filter(s=>s.latitude&&s.longitude).map(s=>({
       type:"Feature",
       geometry:{ type:"Point", coordinates:[+s.longitude,+s.latitude] },
-      properties:{ urn:s.urn, phase:s.phase||"Other", isMission:missionUrns.has(s.urn)?1:0 },
+      properties:{
+        urn:s.urn, phase:s.phase||"Other", isMission:missionUrns.has(s.urn)?1:0,
+        imd_decile: s.imd_decile || 0,
+        imd_rank:   s.imd_rank   || 0,
+      },
     })),
   };
 }
@@ -259,6 +286,48 @@ function SchoolPopup({ school, missionSchools, missions, onAdd, onRemove, onClos
           {school.pupils && <div>👥 {school.pupils} pupils{school.capacity ? ` (capacity ${school.capacity})` : ""}</div>}
           {school.trust_name && <div>🏫 {school.trust_name}</div>}
         </div>
+
+        {/* IMD Deprivation */}
+        {school.imd_decile && (
+          <div style={{ marginBottom:10 }}>
+            <div style={{ ...LS, marginBottom:6 }}>Place Deprivation (IMD 2019)</div>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
+              <div style={{
+                width:36, height:36, borderRadius:8, flexShrink:0,
+                background: IMD_COLORS[school.imd_decile] || "#94a3b8",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                color:"#fff", fontWeight:800, fontSize:16,
+              }}>{school.imd_decile}</div>
+              <div>
+                <div style={{ fontSize:12, fontWeight:700, color:"#0f172a" }}>
+                  Decile {school.imd_decile} — {school.imd_decile<=2?"Most deprived":school.imd_decile<=4?"More deprived":school.imd_decile<=6?"Average":school.imd_decile<=8?"Less deprived":"Least deprived"}
+                </div>
+                {school.imd_rank && <div style={{ fontSize:10, color:"#64748b" }}>Rank {school.imd_rank.toLocaleString()} of 32,844 LSOAs</div>}
+                {school.lsoa_name && <div style={{ fontSize:10, color:"#94a3b8" }}>{school.lsoa_name}</div>}
+              </div>
+            </div>
+            {/* Decile bar */}
+            <div style={{ display:"flex", gap:2 }}>
+              {[1,2,3,4,5,6,7,8,9,10].map(d=>(
+                <div key={d} style={{
+                  flex:1, height:6, borderRadius:2,
+                  background: IMD_COLORS[d],
+                  opacity: d===school.imd_decile ? 1 : 0.2,
+                  transform: d===school.imd_decile ? "scaleY(1.8)" : "none",
+                  transition:"all 0.2s",
+                }}/>
+              ))}
+            </div>
+            <div style={{ display:"flex", justifyContent:"space-between", marginTop:3, fontSize:9, color:"#94a3b8" }}>
+              <span>Most deprived</span><span>Least deprived</span>
+            </div>
+            {school.idaci_decile && (
+              <div style={{ marginTop:6, fontSize:10, color:"#64748b" }}>
+                IDACI (child poverty) decile: <strong style={{ color: school.idaci_decile<=3?"#dc2626":"#374151" }}>{school.idaci_decile}</strong>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Contextual data */}
         <div style={{ background:"#f8fafc", borderRadius:8, padding:"8px 10px", marginBottom:10 }}>
@@ -520,6 +589,7 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
   const [activeFilters,setActiveFilters]=useState({});
   const [selectedMissionId,setSelectedMissionId]=useState(null);
   const [viewState,setViewState]=useState({latitude:52.8,longitude:-1.5,zoom:6});
+  const [mapMode,setMapMode]=useState("phase"); // "phase" | "imd" | "ofsted"
   const mapRef=useRef(null);
 
   useEffect(()=>{
@@ -535,6 +605,18 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
 
   const missionUrns=useMemo(()=>new Set(missionSchools.map(s=>s.urn)),[missionSchools]);
   const geoJSON=useMemo(()=>toGeoJSON(filtered,missionUrns),[filtered,missionUrns]);
+
+  // IMD stats for currently filtered schools
+  const imdStats = useMemo(()=>{
+    const withIMD = filtered.filter(s=>s.imd_decile);
+    if (!withIMD.length) return null;
+    const decileCounts = Array(11).fill(0);
+    withIMD.forEach(s => { if(s.imd_decile>=1&&s.imd_decile<=10) decileCounts[s.imd_decile]++; });
+    const mostDep = withIMD.filter(s=>s.imd_decile<=2).length;
+    const leastDep = withIMD.filter(s=>s.imd_decile>=9).length;
+    const avgRank = withIMD.filter(s=>s.imd_rank).reduce((a,s)=>a+(s.imd_rank||0),0) / withIMD.filter(s=>s.imd_rank).length;
+    return { decileCounts, mostDep, leastDep, avgRank: Math.round(avgRank), total: withIMD.length };
+  },[filtered]);
 
   const doSearch=async()=>{
     const q=searchQuery.trim();
@@ -653,6 +735,22 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
         <div style={{ fontSize:10,color:"#94a3b8",whiteSpace:"nowrap" }}>
           {loading?"Loading…":`${filtered.length.toLocaleString()} / ${schools.length.toLocaleString()} schools`}
         </div>
+        {/* Map mode toggle */}
+        <div style={{ display:"flex",gap:2,background:"#f1f5f9",borderRadius:8,padding:2,flexShrink:0 }}>
+          {[
+            {id:"phase",  label:"Phase"},
+            {id:"imd",    label:"Deprivation"},
+          ].map(({id,label})=>(
+            <button key={id} onClick={()=>setMapMode(id)} style={{
+              padding:"4px 10px",borderRadius:6,border:"none",cursor:"pointer",fontFamily:"inherit",
+              fontSize:10,fontWeight:mapMode===id?700:400,
+              background:mapMode===id?"#fff":"transparent",
+              color:mapMode===id?"#0f172a":"#64748b",
+              boxShadow:mapMode===id?"0 1px 3px rgba(0,0,0,0.1)":undefined,
+              transition:"all 0.15s",
+            }}>{label}</button>
+          ))}
+        </div>
         <div style={{
           fontSize:10, fontFamily:"monospace", padding:"3px 10px", borderRadius:20, flexShrink:0,
           border:`1px solid ${schoolsSyncStatus==="synced"?"#bbf7d0":schoolsSyncStatus==="saving"?"#fde68a":schoolsSyncStatus==="error"?"#fecaca":"#e2e8f0"}`,
@@ -703,14 +801,17 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
                 <Layer id="schools-circles" type="circle" filter={["==",["get","isMission"],0]}
                   paint={{
                     "circle-radius":["interpolate",["linear"],["zoom"],5,3,8,5,11,7],
-                    "circle-color":["match",["get","phase"],"Secondary","#3b82f6","Primary","#10b981","Special","#f59e0b","All-through","#8b5cf6","#94a3b8"],
-                    "circle-opacity":0.8,"circle-stroke-width":0.5,"circle-stroke-color":"#fff",
+                    "circle-color": mapMode==="imd" ? IMD_COLOR_EXPR
+                      : ["match",["get","phase"],"Secondary","#3b82f6","Primary","#10b981","Special","#f59e0b","All-through","#8b5cf6","#94a3b8"],
+                    "circle-opacity": mapMode==="imd" ? 0.9 : 0.8,
+                    "circle-stroke-width":0.5,"circle-stroke-color":"#fff",
                   }}
                 />
                 <Layer id="schools-mission" type="circle" filter={["==",["get","isMission"],1]}
                   paint={{
-                    "circle-radius":["interpolate",["linear"],["zoom"],5,7,8,10,11,13],
-                    "circle-color":"#6366f1","circle-opacity":1,"circle-stroke-width":2.5,"circle-stroke-color":"#fff",
+                    "circle-radius":["interpolate",["linear"],["zoom"],5,8,8,11,11,14],
+                    "circle-color": mapMode==="imd" ? IMD_COLOR_EXPR : "#6366f1",
+                    "circle-opacity":1,"circle-stroke-width":3,"circle-stroke-color":"#fff",
                   }}
                 />
               </Source>
@@ -728,16 +829,56 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
           </Map>
 
           {/* Legend */}
-          <div style={{ position:"absolute",bottom:20,left:16,background:"rgba(255,255,255,0.97)",borderRadius:10,padding:"10px 14px",fontSize:10,boxShadow:"0 2px 12px rgba(0,0,0,0.12)" }}>
-            {[["Secondary","#3b82f6"],["Primary","#10b981"],["Special","#f59e0b"],["All-through","#8b5cf6"],["Mission School","#6366f1"]].map(([l,c])=>(
-              <div key={l} style={{ display:"flex",alignItems:"center",gap:7,marginBottom:4 }}>
-                <span style={{ width:9,height:9,borderRadius:"50%",background:c,display:"inline-block",
-                  border:l==="Mission School"?"2px solid #fff":"none",
-                  boxShadow:l==="Mission School"?"0 0 0 1.5px #6366f1":"none" }}/>
-                <span style={{ color:"#374151",fontWeight:l==="Mission School"?700:400 }}>{l}</span>
-              </div>
-            ))}
+          <div style={{ position:"absolute",bottom:20,left:16,background:"rgba(255,255,255,0.97)",borderRadius:10,padding:"10px 14px",fontSize:10,boxShadow:"0 2px 12px rgba(0,0,0,0.12)",maxWidth:180 }}>
+            {mapMode==="imd" ? (<>
+              <div style={{ fontWeight:700,color:"#0f172a",marginBottom:6,fontSize:10 }}>IMD Deprivation Decile</div>
+              {[1,2,3,4,5,6,7,8,9,10].map(d=>(
+                <div key={d} style={{ display:"flex",alignItems:"center",gap:6,marginBottom:2 }}>
+                  <span style={{ width:9,height:9,borderRadius:2,background:IMD_COLORS[d],display:"inline-block",flexShrink:0 }}/>
+                  <span style={{ color:"#64748b",fontSize:9 }}>
+                    {d===1?"1 — Most deprived":d===10?"10 — Least deprived":`${d}`}
+                  </span>
+                </div>
+              ))}
+              {missionSchools.length>0&&<div style={{ marginTop:6,paddingTop:6,borderTop:"1px solid #f1f5f9",display:"flex",alignItems:"center",gap:6 }}>
+                <span style={{ width:9,height:9,borderRadius:"50%",background:"#6366f1",display:"inline-block",border:"2px solid #fff",boxShadow:"0 0 0 1.5px #6366f1",flexShrink:0 }}/>
+                <span style={{ color:"#374151",fontWeight:700 }}>Mission School</span>
+              </div>}
+            </>) : (
+              [["Secondary","#3b82f6"],["Primary","#10b981"],["Special","#f59e0b"],["All-through","#8b5cf6"],["Mission School","#6366f1"]].map(([l,c])=>(
+                <div key={l} style={{ display:"flex",alignItems:"center",gap:7,marginBottom:4 }}>
+                  <span style={{ width:9,height:9,borderRadius:"50%",background:c,display:"inline-block",
+                    border:l==="Mission School"?"2px solid #fff":"none",
+                    boxShadow:l==="Mission School"?"0 0 0 1.5px #6366f1":"none" }}/>
+                  <span style={{ color:"#374151",fontWeight:l==="Mission School"?700:400 }}>{l}</span>
+                </div>
+              ))
+            )}
           </div>
+
+          {/* IMD stats overlay — shown in deprivation mode */}
+          {mapMode==="imd" && imdStats && (
+            <div style={{ position:"absolute",top:12,left:16,background:"rgba(255,255,255,0.97)",borderRadius:10,padding:"10px 14px",fontSize:10,boxShadow:"0 2px 12px rgba(0,0,0,0.12)",maxWidth:200 }}>
+              <div style={{ fontWeight:700,color:"#0f172a",marginBottom:6 }}>Place Intelligence</div>
+              <div style={{ marginBottom:4,color:"#dc2626",fontWeight:600 }}>
+                {Math.round(imdStats.mostDep/imdStats.total*100)}% in most deprived 20%
+              </div>
+              <div style={{ marginBottom:6,color:"#16a34a",fontWeight:600 }}>
+                {Math.round(imdStats.leastDep/imdStats.total*100)}% in least deprived 20%
+              </div>
+              <div style={{ display:"flex",gap:1,height:8,borderRadius:4,overflow:"hidden",marginBottom:3 }}>
+                {[1,2,3,4,5,6,7,8,9,10].map(d=>(
+                  <div key={d} style={{ flex:imdStats.decileCounts[d]||0.1,background:IMD_COLORS[d],transition:"flex 0.3s" }}/>
+                ))}
+              </div>
+              <div style={{ display:"flex",justifyContent:"space-between",color:"#94a3b8",fontSize:9 }}>
+                <span>Most deprived</span><span>Least deprived</span>
+              </div>
+              {imdStats.avgRank>0&&<div style={{ marginTop:6,color:"#64748b" }}>
+                Avg IMD rank: <strong>{imdStats.avgRank.toLocaleString()}</strong> / 32,844
+              </div>}
+            </div>
+          )}
         </div>
 
         {/* Right panel */}
