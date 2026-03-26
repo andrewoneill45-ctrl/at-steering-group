@@ -233,6 +233,7 @@ function SchoolPopup({ school, missionSchools, missions, onAdd, onRemove, onClos
   const allClusters = [...new Set(missionSchools.map(s=>s.cluster).filter(Boolean))];
 
   const doAdd = () => {
+    console.log('[doAdd] called, selMission:', selMission, 'school:', school?.name);
     const cluster = newCluster.trim() || selCluster || null;
     onAdd(school, selMission, cluster);
   };
@@ -571,7 +572,8 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
   const clearSearch=()=>{ setFiltered(schools); setActiveFilters({}); setSearchQuery(""); setSearchExplain(""); };
 
   const addToMission=(school,missionId,cluster)=>{
-    if(missionSchools.find(ms=>ms.urn===school.urn)) return;
+    console.log('[addToMission] school:', school?.name, 'missionId:', missionId, 'existing:', missionSchools.length);
+    if(missionSchools.find(ms=>ms.urn===school.urn)) { console.log('[addToMission] already added'); return; }
     // Try all known field name variants from different data sources
     const newSchool = {
       urn:         school.urn,
