@@ -93,8 +93,15 @@ Write one analytical paragraph identifying the strategic priorities and what thi
 
 // ─── PDF Generator ────────────────────────────────────────────────────────────
 async function generatePDF(allData, narratives, date) {
-  const { default: jsPDF } = await import("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
-  const doc = new jsPDF.jsPDF({ orientation:"portrait", unit:"mm", format:"a4" });
+  // Load jsPDF via script tag (most reliable in browser)
+  await new Promise((resolve, reject) => {
+    if (window.jspdf) { resolve(); return; }
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+    s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+  const doc = new window.jspdf.jsPDF({ orientation:"portrait", unit:"mm", format:"a4" });
 
   const W = 210, M = 16, TW = W - 2*M;
   const NAVY = [15,23,42], TEAL = [99,102,241], GREY = [100,116,139], LIGHT = [241,245,249];
@@ -347,7 +354,7 @@ async function generatePDF(allData, narratives, date) {
 // ─── Word Generator ───────────────────────────────────────────────────────────
 async function generateWord(allData, narratives, date) {
   const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, HeadingLevel,
-          AlignmentType, BorderStyle, WidthType, ShadingType } = await import("https://cdn.jsdelivr.net/npm/docx@8.5.0/+esm");
+          AlignmentType, BorderStyle, WidthType, ShadingType } = await import("https://esm.sh/docx@8.5.0");
 
   const NAVY_HEX = "0F172A";
   const TEAL_HEX = "6366F1";
