@@ -3,7 +3,7 @@ import SteeringGroup from './SteeringGroup.jsx'
 import { useSync } from './useSync.js'
 import { useMissionsSync } from './useMissionsSync.js'
 
-const PASSWORD = "St33ring2026"
+const PASSWORD   = "St33ring2026"
 const STORAGE_KEY = "at_steering_auth"
 
 function PasswordGate({ onUnlock }) {
@@ -57,11 +57,12 @@ function PasswordGate({ onUnlock }) {
 export default function App() {
   const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem(STORAGE_KEY) === "1")
   const { themes, setThemes, syncStatus } = useSync()
-  const { missions, setMissions, missionsSyncStatus } = useMissionsSync()
+  const { missions, setMissions, missionsSyncStatus, missionSchools, setMissionSchools, schoolsSyncStatus } = useMissionsSync()
 
   if (!unlocked) return <PasswordGate onUnlock={() => setUnlocked(true)} />
   return <SteeringGroup
     themes={themes} setThemes={setThemes} syncStatus={syncStatus}
     missions={missions} setMissions={setMissions} missionsSyncStatus={missionsSyncStatus}
+    missionSchools={missionSchools} setMissionSchools={setMissionSchools} schoolsSyncStatus={schoolsSyncStatus}
   />
 }
