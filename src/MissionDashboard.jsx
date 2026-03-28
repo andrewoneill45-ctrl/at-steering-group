@@ -5,6 +5,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { RAG, ALL_MONTHS, TODAY_IDX } from "./data.js";
 import StatsPanel from "./StatsPanel.jsx";
+import DynamicQuadrant from "./DynamicQuadrant.jsx";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const LS  = { fontSize:9, letterSpacing:"0.13em", textTransform:"uppercase", color:"#94a3b8", fontWeight:700 };
@@ -562,6 +563,7 @@ export default function MissionDashboard({ missions, missionSchools, themes }) {
           {id:"gantt",label:"Delivery Signals"},
           {id:"attendance",label:"Attendance"},
           {id:"analytics",label:"Analytics ✦"},
+          {id:"dynamic",label:"Dynamic Schools ★"},
         ].map(({id,label})=>(
           <button key={id} onClick={()=>setActiveTab(id)} style={{
             padding:"8px 16px",border:"none",background:"none",cursor:"pointer",fontFamily:"inherit",
@@ -602,6 +604,9 @@ export default function MissionDashboard({ missions, missionSchools, themes }) {
 
       {/* Tab: Attendance */}
       {activeTab==="attendance" && <AttendanceTab/>}
+
+      {/* Tab: Dynamic Schools */}
+      {activeTab==="dynamic" && <DynamicQuadrant missionSchools={missionSchools} missions={missions}/>}
 
       {/* Tab: Analytics */}
       {activeTab==="analytics" && (
