@@ -344,7 +344,7 @@ function AttendanceTab(){
         </div>
       </div>
       {loading&&<div style={{textAlign:"center",padding:40,color:"#6366f1",fontSize:12}}>Fetching from DfE EES API…</div>}
-      {error&&<div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:"10px 14px",fontSize:11,color:"#991b1b",marginBottom:16}}>⚠ {error} <button onClick={()=>{setFetched(false);setError(null);}} style={{marginLeft:10,fontSize:10,background:"none",border:"1px solid #fca5a5",borderRadius:4,color:"#991b1b",cursor:"pointer",padding:"2px 8px"}}>Retry</button></div>}
+      {error&&<div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:"10px 14px",fontSize:11,color:"#991b1b",marginBottom:16}}>⚠ {error} <button onClick={()=>{setError(null);setData(null);}} style={{marginLeft:10,fontSize:10,background:"none",border:"1px solid #fca5a5",borderRadius:4,color:"#991b1b",cursor:"pointer",padding:"2px 8px"}}>Retry</button></div>}
       {data&&Object.keys(data.las).length>0&&(
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
           {TARGET_LAS.filter(la=>data.las[la.name]).map(la=>{
@@ -359,7 +359,7 @@ function AttendanceTab(){
           })}
         </div>
       )}
-      {!loading&&!error&&(!data||!Object.keys(data.las).length)&&<div style={{textAlign:"center",padding:30,color:"#94a3b8",fontSize:11}}>{fetched?"No data returned.":"Loading…"}</div>}
+      {!loading&&!error&&(!data||!Object.keys(data.las).length)&&<div style={{textAlign:"center",padding:30,color:"#94a3b8",fontSize:11}}>"No data returned from EES API."</div>}
     </div>
   );
 }
