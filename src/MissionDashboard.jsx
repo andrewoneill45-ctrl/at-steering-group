@@ -317,38 +317,44 @@ function AttendanceTab(){
         const locIds=matched.map(l=>l.locId);
         if(natOpt) locIds.push(natOpt.id);
 
+        // Fetch all LA overall absence for 2024/25, filter client-side by old LA code
         const q1=await fetch(`https://api.education.gov.uk/statistics/v1/data-sets/${DS_OVERALL}/query`,{
           method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},
-          body:JSON.stringify({criteria:{geographicLevels:{in:["LA","NAT"]},locations:{in:locIds},filters:{in:["L1KsW","Y0dTH"]}},indicators:["jgLjA"],page:1,pageSize:500}),
+          body:JSON.stringify({criteria:{geographicLevels:{in:["LA"]},filters:{in:["L1KsW","Y0dTH"]},timePeriods:{eq:{period:"2024/2025",code:"AY"}}},indicators:["jgLjA"],page:1,pageSize:500}),
         });
         if(!q1.ok) throw new Error("Query1 "+q1.status);
         const d1=await q1.json();
 
         const q2=await fetch(`https://api.education.gov.uk/statistics/v1/data-sets/${DS_PERSISTENT}/query`,{
           method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},
-          body:JSON.stringify({criteria:{geographicLevels:{in:["LA","NAT"]},locations:{in:locIds},filters:{in:["qYfzj","X5Vmf"]}},indicators:["TuAuP"],page:1,pageSize:500}),
+          body:JSON.stringify({criteria:{geographicLevels:{in:["LA"]},filters:{in:["qYfzj","X5Vmf"]},timePeriods:{eq:{period:"2024/2025",code:"AY"}}},indicators:["TuAuP"],page:1,pageSize:500}),
         });
         if(!q2.ok) throw new Error("Query2 "+q2.status);
         const d2=await q2.json();
 
-        const results={};var national=null;
-        const period1=(d1.results||[])[0]?.timePeriod?.label||"2024/25";
+        // Build lookup from EES LA location ID to old LA code using metadata
+        const laLookup={};
+        (laLevel?.options||[]).forEach(o=>{if(o.oldCode)laLookup[o.id]=o.oldCode;});
+
+        const results={};
+        const period1="2024/25";
         (d1.results||[]).forEach(row=>{
-          const overall=parseFloat(row.values?.["jgLjA"])||null;
-          const period=row.timePeriod?.label||"";
-          if(row.geographicLevel==="NAT"){if(!national)national={overall,persistent:null,period};return;}
-          const locId=Object.values(row.locations||{})[0]?.id;
-          const la=matched.find(l=>l.locId===locId);
-          if(la&&!results[la.name])results[la.name]={overall,persistent:null,period};
+          const overall=parseFloat(row.values?.["jgLjA"]);
+          if(isNaN(overall)||!overall) return;
+          const laId=row.locations?.LA;
+          const oldCode=laLookup[laId];
+          const la=TARGET_LAS.find(l=>l.code===oldCode);
+          if(la&&!results[la.name])results[la.name]={overall,persistent:null,period:period1};
         });
         (d2.results||[]).forEach(row=>{
-          const persistent=parseFloat(row.values?.["TuAuP"])||null;
-          if(row.geographicLevel==="NAT"){if(national&&!national.persistent)national.persistent=persistent;return;}
-          const locId=Object.values(row.locations||{})[0]?.id;
-          const la=matched.find(l=>l.locId===locId);
+          const persistent=parseFloat(row.values?.["TuAuP"]);
+          if(isNaN(persistent)||!persistent) return;
+          const laId=row.locations?.LA;
+          const oldCode=laLookup[laId];
+          const la=TARGET_LAS.find(l=>l.code===oldCode);
           if(la&&results[la.name]&&!results[la.name].persistent)results[la.name].persistent=persistent;
         });
-        setData({las:results,national,period:period1});
+        setData({las:results,national:{overall:NAT_OVERALL,persistent:NAT_PERSISTENT},period:period1});
       }catch(e){console.error("Attendance:",e);setError(e.message);}
       setLoading(false);
     })();
