@@ -4,6 +4,7 @@
  */
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { RAG, ALL_MONTHS, TODAY_IDX } from "./data.js";
+import StatsPanel from "./StatsPanel.jsx";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const LS  = { fontSize:9, letterSpacing:"0.13em", textTransform:"uppercase", color:"#94a3b8", fontWeight:700 };
@@ -453,6 +454,52 @@ function AttendanceTab() {
   );
 }
 
+
+// ─── Analytics Tab ──────────────────────────────────────────────────────────────
+function AnalyticsTab({ missionSchools }) {
+  const [allSchools, setAllSchools] = useState([]);
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    if (allSchools.length) return;
+    fetch('/schools.json')
+      .then(r => r.json())
+      .then(d => setAllSchools(d))
+      .catch(e => console.error('schools.json load failed:', e));
+  }, []);
+
+  if (!allSchools.length) return (
+    <div style={{ textAlign:'center', padding:40, color:'#94a3b8', fontSize:12 }}>
+      Loading school data…
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{ marginBottom:16 }}>
+        <div style={{ fontSize:13, fontWeight:700, color:'#0f172a' }}>Mission School Analytics</div>
+        <div style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>
+          AI-powered analysis of your {missionSchools.length} mission schools vs all {allSchools.length.toLocaleString()} schools in England
+        </div>
+      </div>
+      <button onClick={() => setShow(true)} style={{
+        background:'#4f46e5', color:'#fff', border:'none', borderRadius:8,
+        padding:'10px 20px', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit'
+      }}>
+        Open Analytics Panel ✦
+      </button>
+      {show && (
+        <StatsPanel
+          filtered={missionSchools}
+          allSchools={allSchools}
+          onClose={() => setShow(false)}
+          activeFilters={{ mission: 'Mission Schools' }}
+        />
+      )}
+    </div>
+  );
+}
+
 // ─── Main Dashboard ─────────────────────────────────────────────────────────────
 export default function MissionDashboard({ missions, missionSchools, themes }) {
   const [activeTab, setActiveTab] = useState("overview");
@@ -531,6 +578,7 @@ export default function MissionDashboard({ missions, missionSchools, themes }) {
           {id:"clusters",label:"Cluster Analysis"},
           {id:"gantt",label:"Delivery Signals"},
           {id:"attendance",label:"Attendance"},
+          {id:"analytics",label:"Analytics ✦"},
         ].map(({id,label})=>(
           <button key={id} onClick={()=>setActiveTab(id)} style={{
             padding:"8px 16px",border:"none",background:"none",cursor:"pointer",fontFamily:"inherit",
@@ -571,6 +619,11 @@ export default function MissionDashboard({ missions, missionSchools, themes }) {
 
       {/* Tab: Attendance */}
       {activeTab==="attendance" && <AttendanceTab/>}
+
+      {/* Tab: Analytics */}
+      {activeTab==="analytics" && (
+        <AnalyticsTab missionSchools={missionSchools}/>
+      )}
 
     </div>
   );
