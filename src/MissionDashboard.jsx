@@ -332,9 +332,12 @@ function AttendanceTab(){
         if(!q2.ok) throw new Error("Query2 "+q2.status);
         const d2=await q2.json();
 
-        // Build lookup from EES LA location ID to old LA code using metadata
-        const laLookup={};
-        (laLevel?.options||[]).forEach(o=>{if(o.oldCode)laLookup[o.id]=o.oldCode;});
+        // Build lookup from EES LA location ID to LA name using metadata
+        const laIdToName={};
+        (laLevel?.options||[]).forEach(o=>{
+          const matched=TARGET_LAS.find(l=>o.label?.toLowerCase()===l.name.toLowerCase()||o.label?.toLowerCase().includes(l.name.toLowerCase().split(" ")[0]));
+          if(matched) laIdToName[o.id]=matched.name;
+        });
 
         const results={};
         const period1="2024/25";
@@ -342,17 +345,15 @@ function AttendanceTab(){
           const overall=parseFloat(row.values?.["jgLjA"]);
           if(isNaN(overall)||!overall) return;
           const laId=row.locations?.LA;
-          const oldCode=laLookup[laId];
-          const la=TARGET_LAS.find(l=>l.code===oldCode);
-          if(la&&!results[la.name])results[la.name]={overall,persistent:null,period:period1};
+          const laName=laIdToName[laId];
+          if(laName&&!results[laName])results[laName]={overall:+overall.toFixed(1),persistent:null,period:period1};
         });
         (d2.results||[]).forEach(row=>{
           const persistent=parseFloat(row.values?.["TuAuP"]);
           if(isNaN(persistent)||!persistent) return;
           const laId=row.locations?.LA;
-          const oldCode=laLookup[laId];
-          const la=TARGET_LAS.find(l=>l.code===oldCode);
-          if(la&&results[la.name]&&!results[la.name].persistent)results[la.name].persistent=persistent;
+          const laName=laIdToName[laId];
+          if(laName&&results[laName]&&!results[laName].persistent)results[laName].persistent=+persistent.toFixed(1);
         });
         setData({las:results,national:{overall:NAT_OVERALL,persistent:NAT_PERSISTENT},period:period1});
       }catch(e){console.error("Attendance:",e);setError(e.message);}
