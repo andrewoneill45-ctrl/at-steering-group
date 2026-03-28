@@ -458,7 +458,6 @@ function AttendanceTab() {
 // ─── Analytics Tab ──────────────────────────────────────────────────────────────
 function AnalyticsTab({ missionSchools }) {
   const [allSchools, setAllSchools] = useState([]);
-  const [show, setShow] = useState(false);
 
   useEffect(() => {
     if (allSchools.length) return;
@@ -475,28 +474,12 @@ function AnalyticsTab({ missionSchools }) {
   );
 
   return (
-    <div>
-      <div style={{ marginBottom:16 }}>
-        <div style={{ fontSize:13, fontWeight:700, color:'#0f172a' }}>Mission School Analytics</div>
-        <div style={{ fontSize:10, color:'#94a3b8', marginTop:2 }}>
-          AI-powered analysis of your {missionSchools.length} mission schools vs all {allSchools.length.toLocaleString()} schools in England
-        </div>
-      </div>
-      <button onClick={() => setShow(true)} style={{
-        background:'#4f46e5', color:'#fff', border:'none', borderRadius:8,
-        padding:'10px 20px', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit'
-      }}>
-        Open Analytics Panel ✦
-      </button>
-      {show && (
-        <StatsPanel
-          filtered={missionSchools}
-          allSchools={allSchools}
-          onClose={() => setShow(false)}
-          activeFilters={{ mission: 'Mission Schools' }}
-        />
-      )}
-    </div>
+    <StatsPanel
+      filtered={missionSchools}
+      allSchools={allSchools}
+      onClose={null}
+      activeFilters={{ mission: 'Mission Schools' }}
+    />
   );
 }
 
