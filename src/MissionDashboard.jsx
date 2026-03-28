@@ -386,3 +386,141 @@ function AttendanceTab(){
 }
 
 
+
+// ─── Main Dashboard ────────────────────────────────────────────────────────────
+export default function MissionDashboard({ missions, missionSchools, themes }) {
+  const [activeTab, setActiveTab] = useState("overview");
+
+  const totalSchools = missionSchools.length;
+  const allAvgFSM  = avgMetric(missionSchools, getFSM);
+  const allAvgP8   = avgMetric(missionSchools, getP8);
+  const allAvgAtt8 = avgMetric(missionSchools, getAtt8);
+  const allClusters = [...new Set(missionSchools.map(s=>s.cluster).filter(Boolean))];
+
+  const allProjects = themes.flatMap(t=>t.projects);
+  const redCount   = allProjects.filter(p=>p.rag==="R").length;
+  const amberCount = allProjects.filter(p=>p.rag==="A").length;
+  const greenCount = allProjects.filter(p=>p.rag==="G").length;
+
+  if (!missions.length) return (
+    <div style={{ flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:"#64748b",fontFamily:"'Outfit','Segoe UI',sans-serif" }}>
+      <div style={{ fontSize:32 }}>🎯</div>
+      <div style={{ fontSize:16,fontWeight:700,color:"#0f172a" }}>No missions yet</div>
+      <div style={{ fontSize:13 }}>Go to Mission Planner to create your first mission.</div>
+    </div>
+  );
+
+  return (
+    <div style={{ flex:1,overflowY:"auto",padding:"24px",fontFamily:"'Outfit','Segoe UI',sans-serif",background:"#f8fafc" }}>
+      <div style={{ marginBottom:20 }}>
+        <div style={{ fontSize:11,color:"#94a3b8",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.1em" }}>MISSION DASHBOARD — {new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}).toUpperCase()}</div>
+        <h1 style={{ fontSize:22,fontWeight:800,color:"#0f172a",margin:"4px 0 0" }}>Place-based Programme Overview</h1>
+      </div>
+      <div style={{ display:"flex",gap:12,marginBottom:20,flexWrap:"wrap" }}>
+        <MetricCard label="Missions" value={missions.length} color="#6366f1"/>
+        <MetricCard label="Schools" value={totalSchools} color="#0ea5e9"/>
+        <MetricCard label="Clusters" value={allClusters.length} color="#8b5cf6"/>
+        {allAvgFSM!=null&&<MetricCard label="Avg FSM" value={`${allAvgFSM}%`} color="#d97706"/>}
+        {allAvgAtt8!=null&&<MetricCard label="Avg Att8" value={allAvgAtt8} color="#3b82f6"/>}
+        {allAvgP8!=null&&<MetricCard label="Avg P8" value={allAvgP8>0?`+${allAvgP8}`:allAvgP8} color={allAvgP8>=0?"#16a34a":"#dc2626"}/>}
+      </div>
+      {missionSchools.length>0&&(
+        <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginBottom:20 }}>
+          <div style={{ background:"#fff",borderRadius:10,border:"1px solid #e8ecf0",padding:"12px 16px" }}><PhaseBar schools={missionSchools}/></div>
+          <div style={{ background:"#fff",borderRadius:10,border:"1px solid #e8ecf0",padding:"12px 16px" }}><OfstedBar schools={missionSchools}/></div>
+          <div style={{ background:"#fff",borderRadius:10,border:"1px solid #e8ecf0",padding:"12px 16px" }}><IMDProfile schools={missionSchools} title="Place Deprivation (IMD)"/></div>
+        </div>
+      )}
+      <div style={{ background:"#fff",borderRadius:10,border:"1px solid #e8ecf0",padding:"12px 18px",marginBottom:20,display:"flex",alignItems:"center",gap:16 }}>
+        <span style={{ fontSize:11,fontWeight:700,color:"#0f172a",flexShrink:0 }}>Delivery Programme Health</span>
+        <div style={{ flex:1,height:8,borderRadius:4,overflow:"hidden",display:"flex",gap:1 }}>
+          {greenCount>0&&<div style={{ flex:greenCount,background:"#16a34a",borderRadius:"4px 0 0 4px" }}/>}
+          {amberCount>0&&<div style={{ flex:amberCount,background:"#d97706" }}/>}
+          {redCount>0&&<div style={{ flex:redCount,background:"#dc2626",borderRadius:"0 4px 4px 0" }}/>}
+        </div>
+        <div style={{ display:"flex",gap:12,fontSize:11,flexShrink:0 }}>
+          <span style={{ color:"#16a34a",fontWeight:600 }}>✓ {greenCount}</span>
+          <span style={{ color:"#d97706",fontWeight:600 }}>⚠ {amberCount}</span>
+          <span style={{ color:"#dc2626",fontWeight:600 }}>✗ {redCount}</span>
+        </div>
+      </div>
+      <div style={{ display:"flex",gap:4,marginBottom:20,borderBottom:"1px solid #e8ecf0",paddingBottom:0 }}>
+        {[{id:"overview",label:"Mission Overview"},{id:"clusters",label:"Cluster Analysis"},{id:"gantt",label:"Delivery Signals"},{id:"attendance",label:"Attendance"}].map(({id,label})=>(
+          <button key={id} onClick={()=>setActiveTab(id)} style={{ padding:"8px 16px",border:"none",background:"none",cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:activeTab===id?700:400,color:activeTab===id?"#4f46e5":"#64748b",borderBottom:activeTab===id?"2px solid #4f46e5":"2px solid transparent",marginBottom:-1 }}>{label}</button>
+        ))}
+      </div>
+      {activeTab==="overview"&&(
+        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(380px,1fr))",gap:20 }}>
+          {missions.map(mission=>(<MissionCard key={mission.id} mission={mission} schools={missionSchools}/>))}
+          {missionSchools.filter(s=>!s.missionId).length>0&&(
+            <div style={{ background:"#fff",borderRadius:12,border:"1px solid #fde68a",padding:"16px" }}>
+              <div style={{ fontSize:13,fontWeight:700,color:"#92400e",marginBottom:8 }}>⚠ Unassigned Schools</div>
+              <div style={{ fontSize:12,color:"#64748b",marginBottom:10 }}>{missionSchools.filter(s=>!s.missionId).length} schools not assigned to a mission</div>
+              <div style={{ display:"flex",flexDirection:"column",gap:4 }}>
+                {missionSchools.filter(s=>!s.missionId).slice(0,5).map(s=>(<div key={s.urn} style={{ fontSize:11,color:"#374151" }}>{s.name} · {s.la}</div>))}
+                {missionSchools.filter(s=>!s.missionId).length>5&&<div style={{ fontSize:10,color:"#94a3b8" }}>…and {missionSchools.filter(s=>!s.missionId).length-5} more</div>}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {activeTab==="clusters"&&(
+        <div>
+          {allClusters.length===0 ? (
+            <div style={{ textAlign:"center",padding:"40px",color:"#94a3b8",fontSize:12 }}>No clusters created yet.</div>
+          ) : (
+            <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(320px,1fr))",gap:16 }}>
+              {allClusters.map(cl=>{
+                const cs=missionSchools.filter(s=>s.cluster===cl);
+                const cFSM=avgMetric(cs,getFSM),cP8=avgMetric(cs,getP8),cAtt8=avgMetric(cs,getAtt8);
+                const mission=missions.find(m=>m.id===cs[0]?.missionId);
+                return(
+                  <div key={cl} style={{ background:"#fff",borderRadius:12,border:"1px solid #e8ecf0",overflow:"hidden",boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
+                    <div style={{ background:"#6366f10d",borderBottom:"2px solid #6366f133",padding:"10px 14px",display:"flex",alignItems:"center",justifyContent:"space-between" }}>
+                      <div><span style={{ fontSize:14,fontWeight:700,color:"#4f46e5" }}>{cl}</span>{mission&&<span style={{ fontSize:10,color:"#64748b",marginLeft:8 }}>{mission.name}</span>}</div>
+                      <span style={{ fontSize:11,color:"#6366f1",fontWeight:600 }}>{cs.length} schools</span>
+                    </div>
+                    <div style={{ padding:"12px 14px" }}>
+                      <div style={{ display:"flex",gap:8,marginBottom:10,flexWrap:"wrap" }}>
+                        {cFSM!=null&&<MetricCard label="FSM" value={`${cFSM}%`} color="#d97706" small/>}
+                        {cP8!=null&&<MetricCard label="P8" value={cP8>0?`+${cP8}`:cP8} color={cP8>=0?"#16a34a":"#dc2626"} small/>}
+                        {cAtt8!=null&&<MetricCard label="Att8" value={cAtt8} color="#3b82f6" small/>}
+                      </div>
+                      <PhaseBar schools={cs}/>
+                      <div style={{ marginTop:8 }}><OfstedBar schools={cs}/></div>
+                      <div style={{ marginTop:8,maxHeight:120,overflowY:"auto" }}>
+                        {cs.map(s=>(<div key={s.urn} style={{ fontSize:10,color:"#374151",padding:"2px 0",borderBottom:"1px solid #f8fafc",display:"flex",justifyContent:"space-between" }}><span style={{ overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1 }}>{s.name}</span>{(s.progress8||s.p8)&&<span style={{ color:+(s.progress8||s.p8)>=0?"#16a34a":"#dc2626",fontWeight:600,flexShrink:0,marginLeft:6 }}>P8 {+(s.progress8||s.p8)>0?"+":""}{s.progress8||s.p8}</span>}</div>))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+      {activeTab==="gantt"&&(
+        <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,alignItems:"start" }}>
+          <GanttSignals themes={themes} missions={missions} missionSchools={missionSchools}/>
+          <div style={{ background:"#fff",borderRadius:12,border:"1px solid #e8ecf0",overflow:"hidden",boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
+            <div style={{ padding:"13px 18px",borderBottom:"1px solid #f1f5f9" }}><span style={{ fontSize:12,fontWeight:700,color:"#0f172a" }}>All Delivery Themes</span></div>
+            <div style={{ padding:"8px 0" }}>
+              {themes.map(t=>{
+                const pRags=t.projects.map(p=>p.rag);
+                const g=pRags.filter(r=>r==="G").length,a=pRags.filter(r=>r==="A").length,r=pRags.filter(r=>r==="R").length;
+                const worst=r>0?"R":a>0?"A":"G";
+                return(<div key={t.id} style={{ padding:"9px 18px",borderBottom:"1px solid #f8fafc",display:"flex",alignItems:"center",gap:10 }}>
+                  <div style={{ width:3,height:32,background:t.color,borderRadius:2,flexShrink:0 }}/>
+                  <div style={{ flex:1,minWidth:0 }}><div style={{ fontSize:11,fontWeight:600,color:"#0f172a",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{t.name}</div><div style={{ fontSize:10,color:"#94a3b8",marginTop:1 }}>{t.projects.length} projects</div></div>
+                  <div style={{ display:"flex",gap:6,fontSize:10 }}><span style={{ color:"#16a34a",fontWeight:600 }}>✓{g}</span>{a>0&&<span style={{ color:"#d97706",fontWeight:600 }}>⚠{a}</span>}{r>0&&<span style={{ color:"#dc2626",fontWeight:600 }}>✗{r}</span>}</div>
+                  <div style={{ width:8,height:8,borderRadius:"50%",background:RAG[worst].color,flexShrink:0 }}/>
+                </div>);
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+      {activeTab==="attendance"&&<AttendanceTab/>}
+    </div>
+  );
+}
