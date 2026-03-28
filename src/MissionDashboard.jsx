@@ -3,7 +3,7 @@
  * Aggregated view of mission schools + cluster analysis + Gantt signals
  */
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { RAG, ALL_MONTHS, TODAY_IDX } from "./data.js";
 import BriefingGenerator from "./BriefingGenerator.jsx";
 
@@ -296,10 +296,9 @@ function AttendanceTab(){
   const [data,setData]=useState(null);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState(null);
-  const [fetched,setFetched]=useState(false);
-  const fetchData=useCallback(async()=>{
-    if(fetched)return;
+  useEffect(()=>{
     setLoading(true);setError(null);
+    (async()=>{
     try{
       const mr=await fetch(`https://api.education.gov.uk/statistics/v1/data-sets/${DATASET_ID}/meta`,{headers:{Accept:"application/json"}});
       if(!mr.ok)throw new Error("Meta "+mr.status);
@@ -331,11 +330,10 @@ function AttendanceTab(){
         if(la&&!results[la.name])results[la.name]={overall,persistent,period};
       });
       setData({las:results,national,period:Object.values(results)[0]?.period});
-      setFetched(true);
     }catch(e){console.error("Attendance:",e);setError(e.message);}
     setLoading(false);
-  },[fetched]);
-  useEffect(()=>{fetchData();},[fetchData]);
+    })();
+  },[]);
   const nat=data?.national||{overall:NAT_OVERALL,persistent:NAT_PERSISTENT};
   return(
     <div>
