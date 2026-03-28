@@ -332,10 +332,12 @@ function AttendanceTab(){
         if(!q2.ok) throw new Error("Query2 "+q2.status);
         const d2=await q2.json();
 
-        // Build lookup from EES LA location ID to LA name using metadata
+        // Build lookup from EES LA location ID to LA name using oldCode and label
         const laIdToName={};
         (laLevel?.options||[]).forEach(o=>{
-          const matched=TARGET_LAS.find(l=>o.label?.toLowerCase()===l.name.toLowerCase()||o.label?.toLowerCase().includes(l.name.toLowerCase().split(" ")[0]));
+          const byCode=TARGET_LAS.find(l=>o.oldCode===l.code);
+          const byLabel=TARGET_LAS.find(l=>o.label?.toLowerCase()===l.name.toLowerCase());
+          const matched=byCode||byLabel;
           if(matched) laIdToName[o.id]=matched.name;
         });
 
