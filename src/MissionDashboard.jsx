@@ -1,3 +1,5 @@
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { RAG, ALL_MONTHS, TODAY_IDX } from "./data.js";
 
 // ─── LA Attendance from EES API ────────────────────────────────────────────────
 const TARGET_LAS = [
