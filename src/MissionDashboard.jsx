@@ -319,14 +319,14 @@ function AttendanceTab(){
 
         const q1=await fetch(`https://api.education.gov.uk/statistics/v1/data-sets/${DS_OVERALL}/query`,{
           method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},
-          body:JSON.stringify({criteria:{geographicLevels:{comparator:"In",value:["LA","NAT"]},locations:{comparator:"In",value:locIds},filters:{comparator:"In",value:["L1KsW","Y0dTH"]}},indicators:["jgLjA"],sort:[{field:"timePeriod",order:"Desc"}],page:1,pageSize:200}),
+          body:JSON.stringify({criteria:{geographicLevels:{in:["LA","NAT"]},locations:{in:locIds},filters:{in:["L1KsW","Y0dTH"]}},indicators:["jgLjA"],page:1,pageSize:500}),
         });
         if(!q1.ok) throw new Error("Query1 "+q1.status);
         const d1=await q1.json();
 
         const q2=await fetch(`https://api.education.gov.uk/statistics/v1/data-sets/${DS_PERSISTENT}/query`,{
           method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},
-          body:JSON.stringify({criteria:{geographicLevels:{comparator:"In",value:["LA","NAT"]},locations:{comparator:"In",value:locIds},filters:{comparator:"In",value:["qYfzj","X5Vmf"]}},indicators:["TuAuP"],sort:[{field:"timePeriod",order:"Desc"}],page:1,pageSize:200}),
+          body:JSON.stringify({criteria:{geographicLevels:{in:["LA","NAT"]},locations:{in:locIds},filters:{in:["qYfzj","X5Vmf"]}},indicators:["TuAuP"],page:1,pageSize:500}),
         });
         if(!q2.ok) throw new Error("Query2 "+q2.status);
         const d2=await q2.json();
