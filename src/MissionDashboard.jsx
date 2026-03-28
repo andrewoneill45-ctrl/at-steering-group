@@ -50,8 +50,6 @@ function IMDProfile({ schools, title }) {
       <div style={{ display:"flex",gap:12,fontSize:10,flexWrap:"wrap" }}>
         <span style={{ color:"#dc2626",fontWeight:600 }}>{pctMost}% in most deprived 20%</span>
         <span style={{ color:"#64748b" }}>{withIMD.length} schools with IMD data</span>
-      {activeTab==="attendance"&&<AttendanceTab/>}
-
       </div>
     </div>
   );
