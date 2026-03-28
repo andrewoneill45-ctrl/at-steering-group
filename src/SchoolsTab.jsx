@@ -184,7 +184,8 @@ function applyFilters(fs, schools) {
 }
 
 // ─── GeoJSON conversion ───────────────────────────────────────────────────────
-function toGeoJSON(schools, missionUrns, phaseLinkedUrns=new Set(), clusterMap=new Map()) {
+function toGeoJSON(schools, missionUrns, phaseLinkedUrns, clusterMap) {
+  phaseLinkedUrns=phaseLinkedUrns||new Set();clusterMap=clusterMap||{_m:{},get:function(k){return this._m[k]||""}};
   return {
     type:"FeatureCollection",
     features: schools.filter(s=>s.latitude&&s.longitude).map(s=>({
@@ -639,9 +640,9 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
   },[selectedPhaseId,missions]);
 
   const clusterMap=useMemo(()=>{
-    const m=new Map();
-    missionSchools.forEach(s=>{ if(s.cluster) m.set(s.urn, s.cluster); });
-    return m;
+    var m={};
+    missionSchools.forEach(s=>{ if(s.cluster) m[s.urn]=s.cluster; });
+    return {_m:m,get:function(k){return this._m[k]||""}};
   },[missionSchools]);
   const geoJSON=useMemo(()=>toGeoJSON(filtered,missionUrns,phaseLinkedUrns,clusterMap),[filtered,missionUrns,phaseLinkedUrns,clusterMap]);
 
