@@ -1,0 +1,16 @@
+
+/* Override StatsPanel overlay for inline rendering in steering app */
+.sp2-overlay {
+  position: relative !important;
+  inset: auto !important;
+  z-index: auto !important;
+  background: transparent !important;
+  animation: none !important;
+}
+.sp2-close { display: none !important; }
+.sp2-panel {
+  max-width: 100% !important;
+  padding: 0 !important;
+  font-family: "Outfit", "Segoe UI", sans-serif !important;
+}
+.sp2-tabs { font-family: "Outfit", "Segoe UI", sans-serif !important; }

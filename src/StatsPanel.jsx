@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { aiAnalytics, aiPlaceBriefing, aiTrustAnalysis, buildSchoolContext, hasApiKey } from './ai';
 import './StatsPanel.css';
+import './StatsOverride.css';
 
 /* ─── Helpers ──────────────────────────── */
 const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
