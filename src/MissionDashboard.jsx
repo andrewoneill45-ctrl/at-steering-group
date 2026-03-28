@@ -337,6 +337,7 @@ function AttendanceTab(){
   const nat=data?.national||{overall:NAT_OVERALL,persistent:NAT_PERSISTENT};
   return(
     <div>
+      <div style={{padding:8,background:"#fef9c3",fontSize:11,marginBottom:8}}>AttendanceTab mounted · loading:{loading?"yes":"no"} · error:{error||"none"} · data:{data?"yes":"no"}</div>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}>
         <div><div style={{fontSize:13,fontWeight:700,color:"#0f172a"}}>LA Attendance Intelligence</div><div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>Live · EES API · {data?.period||"2023/24"} · North East + Portsmouth</div></div>
         <div style={{display:"flex",gap:16,background:"#f8fafc",borderRadius:8,padding:"8px 14px",fontSize:10}}>
