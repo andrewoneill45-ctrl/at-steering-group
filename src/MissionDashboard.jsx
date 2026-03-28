@@ -568,6 +568,8 @@ export default function MissionDashboard({ missions, missionSchools, themes }) {
         )}
 
       </div>
+      {activeTab==="attendance"&&<AttendanceTab/>}
+
     </div>
   );
 }
