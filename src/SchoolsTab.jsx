@@ -625,6 +625,8 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
   const [searchExplain,setSearchExplain]=useState("");
   const [activeFilters,setActiveFilters]=useState({});
   const [selectedMissionId,setSelectedMissionId]=useState(null);
+  const isMobile = useIsMobile();
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [viewState,setViewState]=useState({latitude:52.8,longitude:-1.5,zoom:6});
   const [mapMode,setMapMode]=useState("phase"); // "phase" | "imd" | "ofsted"
   const mapRef=useRef(null);
