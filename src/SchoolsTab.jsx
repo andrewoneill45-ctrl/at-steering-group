@@ -840,7 +840,7 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
       <div style={{ flex:1,display:"flex",overflow:"hidden",position:"relative",flexDirection:isMobile?"column":"row" }}>
 
         {/* Map */}
-        <div style={{ flex:1,position:"relative" }}>
+        <div style={{ flex:1,position:"relative",minHeight:isMobile?"50vh":"0" }}>
           {loading&&(
             <div style={{ position:"absolute",inset:0,background:"rgba(248,250,252,0.95)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10,flexDirection:"column",gap:10 }}>
               <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
@@ -904,7 +904,7 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
             {popup&&(
               <Popup latitude={popup.lat} longitude={popup.lng}
                 onClose={()=>setPopup(null)} closeButton={false} closeOnClick={false}
-                anchor="bottom" offset={12} maxWidth="580px">
+                anchor="bottom" offset={12} maxWidth={isMobile?"320px":"580px"}>
                 <SchoolPopup
                   school={popup.school} missionSchools={missionSchools} missions={missions}
                   onAdd={addToMission} onRemove={removeFromMission} onClose={()=>setPopup(null)}
