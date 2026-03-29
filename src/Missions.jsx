@@ -307,8 +307,8 @@ export default function Missions({missions,setMissions,syncStatus,missionSchools
       // Create the phase with a temp id
       const newId=uid();
       const newPhase=weekMode
-        ? {id:newId,name:"New phase",weekStart:startSlot,weekDuration:duration,start:0,duration:Math.ceil(duration/4.33),rag:"G",color:slColor,notes:""}
-        : {id:newId,name:"New phase",start:startSlot,duration,rag:"G",color:slColor,notes:""};
+        ? {id:newId,name:"New phase",weekStart:startSlot,weekDuration:duration,start:0,duration:Math.ceil(duration/4.33),rag:"G",color:slColor,notes:"",owner:"",completion:0,decisionNeeded:false}
+        : {id:newId,name:"New phase",start:startSlot,duration,rag:"G",color:slColor,notes:"",owner:"",completion:0,decisionNeeded:false};
       updSR(mid,slid,srid,sr=>({...sr,phases:[...sr.phases,newPhase]}));
       // Auto-open the detail panel
       setSel({type:"phase",mid,slid,srid,itemId:newId,autoFocus:true});
@@ -437,6 +437,26 @@ export default function Missions({missions,setMissions,syncStatus,missionSchools
             </div>
           </>)}
           <TF label="Notes" value={phase.notes||""} onChange={v=>handleUpdate("phase",{mid:sel.mid,slid:sel.slid,srid:sel.srid,itemId:sel.itemId},"notes",v)} rows={3}/>
+          <TF label="Owner" value={phase.owner||""} onChange={v=>handleUpdate("phase",{mid:sel.mid,slid:sel.slid,srid:sel.srid,itemId:sel.itemId},"owner",v)} placeholder="Name or team…"/>
+          <div style={{marginBottom:14}}>
+            <FL>Completion</FL>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <input type="range" min={0} max={100} step={5} value={phase.completion||0} onChange={e=>handleUpdate("phase",{mid:sel.mid,slid:sel.slid,srid:sel.srid,itemId:sel.itemId},"completion",+e.target.value)} style={{flex:1}}/>
+              <span style={{fontSize:13,fontWeight:700,color:"#374151",minWidth:36}}>{phase.completion||0}%</span>
+            </div>
+            <div style={{height:4,background:"#f1f5f9",borderRadius:2,marginTop:4}}>
+              <div style={{height:"100%",width:`${phase.completion||0}%`,background:phase.rag==="R"?"#ef4444":phase.rag==="A"?"#f59e0b":"#10b981",borderRadius:2,transition:"width 0.3s"}}/>
+            </div>
+          </div>
+          <div style={{marginBottom:14,display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:(phase.decisionNeeded)?"#fef3c7":"#f8fafc",borderRadius:8,border:`1px solid ${phase.decisionNeeded?"#fde68a":"#e2e8f0"}`,cursor:"pointer"}} onClick={()=>handleUpdate("phase",{mid:sel.mid,slid:sel.slid,srid:sel.srid,itemId:sel.itemId},"decisionNeeded",!phase.decisionNeeded)}>
+            <div style={{width:16,height:16,borderRadius:3,border:`2px solid ${phase.decisionNeeded?"#f59e0b":"#cbd5e1"}`,background:phase.decisionNeeded?"#f59e0b":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              {phase.decisionNeeded&&<span style={{color:"#fff",fontSize:10,fontWeight:700,lineHeight:1}}>✓</span>}
+            </div>
+            <div>
+              <div style={{fontSize:11,fontWeight:600,color:phase.decisionNeeded?"#92400e":"#374151"}}>Decision Needed</div>
+              <div style={{fontSize:9,color:phase.decisionNeeded?"#b45309":"#94a3b8"}}>Flag this phase for leadership attention</div>
+            </div>
+          </div>
                     {/* School linking */}
           {(()=>{
             const phaseSchools=(phase.schoolUrns||[]);
@@ -686,10 +706,15 @@ export default function Missions({missions,setMissions,syncStatus,missionSchools
                                         onTouchStart={e=>{e.stopPropagation();if(addingDep)return;handleDrag(e,mission.id,sl.id,sr.id,phase,"move");}}
                                         onClick={e=>{e.stopPropagation();if(addingDep?.missionId===mission.id){doAddDep(mission.id,phase.id);return;}const newSel=isSel2?null:{type:"phase",mid:mission.id,slid:sl.id,srid:sr.id,itemId:phase.id};setSel(newSel);setSelectedPhaseId(newSel?phase.id:null);if(onPhaseSelect)onPhaseSelect(newSel?{phaseId:phase.id,schoolUrns:phase.schoolUrns||[]}:null);}}
                                       >
+                                        {/* Completion fill overlay */}
+                                        {(phase.completion>0)&&<div style={{position:"absolute",left:0,top:0,height:"100%",width:`${phase.completion}%`,background:"rgba(255,255,255,0.15)",borderRadius:"5px 0 0 5px",pointerEvents:"none",zIndex:1}}/>}
                                         <div onMouseDown={e=>{e.stopPropagation();if(!addingDep)handleDrag(e,mission.id,sl.id,sr.id,phase,"left");}} style={{position:"absolute",left:0,top:0,width:mobile?14:7,height:"100%",cursor:"ew-resize",zIndex:3,touchAction:"none"}}/>
-                                        <span style={{fontSize:11,color:"#fff",padding:"0 10px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",pointerEvents:"none",textShadow:"0 1px 2px rgba(0,0,0,0.35)",flex:1,fontWeight:500}}>{phase.name}</span>
-                                        {(phase.schoolUrns?.length>0)&&<span style={{fontSize:9,marginRight:6,flexShrink:0,pointerEvents:"none",background:"rgba(255,255,255,0.25)",borderRadius:8,padding:"1px 5px",fontWeight:700}}>🏫 {phase.schoolUrns.length}</span>}
-                                        {phase.notes&&<span style={{fontSize:9,marginRight:6,flexShrink:0,pointerEvents:"none",opacity:0.85}}>📝</span>}
+                                        <span style={{fontSize:11,color:"#fff",padding:"0 10px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",pointerEvents:"none",textShadow:"0 1px 2px rgba(0,0,0,0.35)",flex:1,fontWeight:500,position:"relative",zIndex:2}}>{phase.name}</span>
+                                        {phase.owner&&<span style={{fontSize:9,marginRight:4,flexShrink:0,pointerEvents:"none",background:"rgba(255,255,255,0.3)",borderRadius:"50%",width:16,height:16,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,color:"#fff",zIndex:2}}>{phase.owner.trim().split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}</span>}
+                                        {phase.completion>0&&<span style={{fontSize:8,marginRight:4,flexShrink:0,pointerEvents:"none",background:"rgba(0,0,0,0.2)",borderRadius:8,padding:"1px 4px",fontWeight:700,color:"#fff",zIndex:2}}>{phase.completion}%</span>}
+                                        {(phase.schoolUrns?.length>0)&&<span style={{fontSize:9,marginRight:4,flexShrink:0,pointerEvents:"none",background:"rgba(255,255,255,0.25)",borderRadius:8,padding:"1px 5px",fontWeight:700,zIndex:2}}>&#127978; {phase.schoolUrns.length}</span>}
+                                        {phase.decisionNeeded&&<span style={{fontSize:9,marginRight:4,flexShrink:0,pointerEvents:"none",background:"#f59e0b",borderRadius:8,padding:"1px 5px",fontWeight:700,color:"#fff",zIndex:2}}>!</span>}
+                                        {phase.notes&&<span style={{fontSize:9,marginRight:6,flexShrink:0,pointerEvents:"none",opacity:0.85,zIndex:2}}>&#128203;</span>}
                                         <div onMouseDown={e=>{e.stopPropagation();if(!addingDep)handleDrag(e,mission.id,sl.id,sr.id,phase,"right");}} style={{position:"absolute",right:0,top:0,width:mobile?14:7,height:"100%",cursor:"ew-resize",zIndex:3,touchAction:"none"}}/>
                                       </div>
                                     );
