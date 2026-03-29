@@ -1,3 +1,4 @@
+import Logo from "./Logo.jsx";
 import { useState, useCallback, useRef, useEffect } from "react";
 import Missions from "./Missions.jsx";
 import SchoolsTab from "./SchoolsTab.jsx";
