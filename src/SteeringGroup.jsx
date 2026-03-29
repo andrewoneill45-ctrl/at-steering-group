@@ -291,18 +291,28 @@ function Dashboard({ themes, onNavigateToProject }) {
   const allProjects = themes.flatMap(t => t.projects);
   const allPhases   = allProjects.flatMap(p => p.phases);
   const c = (arr, r) => arr.filter(x => x === r).length;
-  const projRags  = allProjects.map(p => p.rag);
 
-  const redItems   = allProjects.filter(p => p.rag === "R");
-  const amberItems = allProjects.filter(p => p.rag === "A");
-  const atRisk = [...redItems, ...amberItems]
-    .map(p => ({ ...p, themeId: themes.find(t => t.projects.some(x => x.id === p.id))?.id }));
+  // Traffic lights driven by mission phase RAGs (not White Paper themes)
+  const missionPhases = missions.flatMap(m =>
+    (m.swimlanes||[]).flatMap(sl =>
+      (sl.subrows||[]).flatMap(sr => (sr.phases||[]).map(ph => ({
+        ...ph,
+        missionName: m.name,
+        missionColor: m.color,
+      })))
+    )
+  );
+  const phaseRags = missionPhases.map(p => p.rag);
+  const redItems   = missionPhases.filter(p => p.rag === "R");
+  const amberItems = missionPhases.filter(p => p.rag === "A");
+  const atRisk = [...redItems, ...amberItems];
 
-  const onTrack  = c(projRags,"G");
-  const atRiskN  = c(projRags,"A");
-  const trouble  = c(projRags,"R");
-  const total    = allProjects.length;
+  const onTrack  = c(phaseRags,"G");
+  const atRiskN  = c(phaseRags,"A");
+  const trouble  = c(phaseRags,"R");
+  const total    = missionPhases.length || 1;
   const pctGood  = Math.round((onTrack / total) * 100);
+  const projRags = allProjects.map(p => p.rag);
 
   // Reusable collapsible panel header
   const SectionHeader = ({ label, badge, open, onToggle, danger }) => (
