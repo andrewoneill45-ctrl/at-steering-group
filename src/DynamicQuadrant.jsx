@@ -88,7 +88,7 @@ export default function DynamicQuadrant({ missionSchools, missions }) {
         <div>
           <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>★ Dynamic Schools</div>
           <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>
-            A8 trajectory (2023→2024) vs Progress 8 (2024) · {plottable.length} of {missionSchools.length} schools plotted
+            A8 change 2023→2024 vs Progress 8 2024 · {plottable.length} of {missionSchools.length} schools plotted
           </div>
         </div>
         {/* Cluster filter */}
@@ -138,18 +138,18 @@ export default function DynamicQuadrant({ missionSchools, missions }) {
             <line x1={x0} y1={PAD} x2={x0} y2={H - PAD} stroke="#0f172a" strokeWidth={1.5} strokeOpacity={0.3}/>
 
             {/* Axis labels */}
-            <text x={W / 2} y={H - 8} fontSize={9} textAnchor="middle" fill="#94a3b8">A8 Change (2023 → 2024) →</text>
-            <text x={12} y={H / 2} fontSize={9} textAnchor="middle" fill="#94a3b8" transform={`rotate(-90,12,${H / 2})`}>Progress 8 (2024) →</text>
+            <text x={W / 2} y={H - 8} fontSize={7} textAnchor="middle" fill="#94a3b8">A8 Change (2023 → 2024) →</text>
+            <text x={12} y={H / 2} fontSize={7} textAnchor="middle" fill="#94a3b8" transform={`rotate(-90,12,${H / 2})`}>Progress 8 (2024) →</text>
 
             {/* Zero labels */}
             <text x={x0 + 4} y={H - PAD + 12} fontSize={8} fill="#94a3b8">0</text>
             <text x={PAD - 4} y={y0 + 3} fontSize={8} fill="#94a3b8" textAnchor="end">0</text>
 
             {/* Quadrant labels */}
-            <text x={W - PAD - 4} y={PAD + 14} fontSize={9} textAnchor="end" fill="#16a34a" fontWeight="bold">Rising Stars ↗</text>
-            <text x={PAD + 4} y={PAD + 14} fontSize={9} fill="#d97706" fontWeight="bold">High but Slowing ↘</text>
-            <text x={W - PAD - 4} y={H - PAD - 6} fontSize={9} textAnchor="end" fill="#0ea5e9" fontWeight="bold">Improving Fast ↗</text>
-            <text x={PAD + 4} y={H - PAD - 6} fontSize={9} fill="#dc2626" fontWeight="bold">Need Support ↙</text>
+            <text x={W - PAD - 4} y={PAD + 10} fontSize={7} textAnchor="end" fill="#16a34a" opacity={0.7}>Rising Stars</text>
+            <text x={PAD + 4} y={PAD + 10} fontSize={7} fill="#d97706" opacity={0.7}>High, Slowing</text>
+            <text x={W - PAD - 4} y={H - PAD - 4} fontSize={7} textAnchor="end" fill="#0ea5e9" opacity={0.7}>Improving</text>
+            <text x={PAD + 4} y={H - PAD - 4} fontSize={7} fill="#dc2626" opacity={0.7}>Need Support</text>
 
             {/* Data points */}
             {plottable.map((s, i) => {
@@ -160,7 +160,7 @@ export default function DynamicQuadrant({ missionSchools, missions }) {
                   onMouseEnter={() => setTooltip({ s, cx, cy })}
                   onMouseLeave={() => setTooltip(null)}
                   style={{ cursor: "pointer" }}>
-                  <circle cx={cx} cy={cy} r={7} fill={col} fillOpacity={0.85} stroke="#fff" strokeWidth={1.5}/>
+                  <circle cx={cx} cy={cy} r={4} fill={col} fillOpacity={0.85} stroke="#fff" strokeWidth={1}/>
                   {plottable.length <= 12 && (
                     <text x={cx} y={cy - 10} fontSize={7} textAnchor="middle" fill="#374151">
                       {s.name?.split(" ")[0]}
@@ -200,7 +200,7 @@ export default function DynamicQuadrant({ missionSchools, missions }) {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
             <thead>
               <tr style={{ background: "#f8fafc" }}>
-                {["School", "Cluster", "LA", "A8 2024", "A8 2023", "Change", "P8 2024", "Quadrant"].map(h => (
+                {["School", "Cluster", "A8 '24", "A8 '23", "Chg", "P8", "Status"].map(h => (
                   <th key={h} style={{ padding: "6px 10px", textAlign: "left", color: "#94a3b8", fontWeight: 700, fontSize: 9, textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
