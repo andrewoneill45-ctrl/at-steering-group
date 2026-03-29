@@ -837,10 +837,10 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
       )}
 
       {/* Body */}
-      <div style={{ flex:1,display:"flex",overflow:"hidden",position:"relative",flexDirection:isMobile?"column":"row" }}>
+      <div style={{ flex:1,display:"flex",overflow:"hidden",position:"relative",flexDirection:isMobile?"column":"row",minHeight:0 }}>
 
         {/* Map */}
-        <div style={{ flex:1,position:"relative",minHeight:isMobile?"50vh":"0" }}>
+        <div style={{ flex:1,position:"relative",minHeight:isMobile?"55vh":"0" }}>
           {loading&&(
             <div style={{ position:"absolute",inset:0,background:"rgba(248,250,252,0.95)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10,flexDirection:"column",gap:10 }}>
               <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
