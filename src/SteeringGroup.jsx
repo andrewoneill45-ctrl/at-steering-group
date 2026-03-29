@@ -759,7 +759,7 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local",
     themes.map(t=>({...t,projects:t.projects.map(p=>({...p,phases:p.phases.filter(ph=>ph.rag===filter)})).filter(p=>p.phases.length>0)})).filter(t=>t.projects.length>0);
 
   return (
-    <div style={{ fontFamily:"'Outfit','Segoe UI',sans-serif", background:"#f8fafc", minHeight:"100vh", display:"flex", flexDirection:"column" }}>
+    <div style={{ fontFamily:"'Inter','Segoe UI',sans-serif", background:"#f8fafc", minHeight:"100vh", display:"flex", flexDirection:"column" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
         * { box-sizing:border-box; }
@@ -770,20 +770,20 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local",
       `}</style>
 
       {/* Header */}
-      <div style={{ background:"#fff", borderBottom:"1px solid #e2e8f0", padding: mobile ? "0 12px" : "0 24px",
+      <div style={{ background:"#0a2342", borderBottom:"1px solid #0f3460", padding: mobile ? "0 12px" : "0 24px",
         display:"flex", alignItems:"center", gap:0,
         height: mobile ? 50 : 58, flexShrink:0, boxShadow:"0 1px 3px rgba(0,0,0,0.05)" }}>
 
         {/* Logo + title */}
         <div style={{ display:"flex", alignItems:"center", gap:8, marginRight: mobile ? 12 : 24 }}>
           <div style={{ width: mobile?26:30, height: mobile?26:30, borderRadius:8,
-            background:"linear-gradient(135deg,#3b82f6,#6366f1)",
+            background:"transparent",
             display:"flex", alignItems:"center", justifyContent:"center",
-            color:"#fff", fontSize: mobile?11:13, fontWeight:700, flexShrink:0 }}>AT</div>
+            flexShrink:0 }}><LogoMark size={mobile?28:34}/></div>
           {!mobile && (
             <div>
-              <div style={{ fontSize:13, fontWeight:700, color:"#0f172a", lineHeight:1 }}>Missions</div>
-              <div style={{ fontSize:10, color:"#94a3b8", lineHeight:1, marginTop:2 }}>Achieve & Thrive 2026</div>
+              <div style={{ fontSize:13, fontWeight:800, color:"#0f172a", lineHeight:1, letterSpacing:"-0.01em" }}>Achieve & Thrive</div>
+              <div style={{ fontSize:9, color:"#94a3b8", lineHeight:1, marginTop:2, letterSpacing:"0.1em", textTransform:"uppercase", fontWeight:600 }}>2026</div>
             </div>
           )}
         </div>
@@ -797,14 +797,14 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local",
           ].map(({ id, label, badge }) => (
             <button key={id} onClick={()=>setView(id)} style={{
               padding: mobile ? "5px 10px" : "5px 14px", borderRadius:20, border:"none", cursor:"pointer",
-              background:view===id?"#0f172a":"transparent",
-              color:view===id?"#fff":"#64748b",
+              background:view===id?"#0f3460":"transparent",
+              color:view===id?"#ffffff":"#94b8d4",
               fontSize: mobile ? 11 : 12, fontWeight:view===id?600:400, fontFamily:"inherit",
               display:"flex", alignItems:"center", gap:5,
             }}>
               {label}
               {badge ? (
-                <span style={{ background:view===id?"#3b82f6":"#e2e8f0", color:view===id?"#fff":"#64748b",
+                <span style={{ background:view===id?"#1e90d4":"#1e4a6e", color:view===id?"#fff":"#94b8d4",
                   borderRadius:10, fontSize:9, fontWeight:700, padding:"1px 6px", lineHeight:1.6 }}>
                   {badge}
                 </span>
