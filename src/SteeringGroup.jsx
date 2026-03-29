@@ -779,7 +779,7 @@ export default function SteeringGroup({ themes, setThemes, syncStatus = "local",
           <div style={{ width: mobile?26:30, height: mobile?26:30, borderRadius:8,
             background:"transparent",
             display:"flex", alignItems:"center", justifyContent:"center",
-            flexShrink:0 }}><LogoMark size={mobile?28:34}/></div>
+            flexShrink:0 }}><Logo size={mobile?28:34}/></div>
           {!mobile && (
             <div>
               <div style={{ fontSize:13, fontWeight:800, color:"#0f172a", lineHeight:1, letterSpacing:"-0.01em" }}>Achieve & Thrive</div>
