@@ -4,6 +4,16 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+
+function useIsMobile() {
+  const [mobile, setMobile] = useState(typeof window !== "undefined" && window.innerWidth < 768);
+  useEffect(() => {
+    const fn = () => setMobile(window.innerWidth < 768);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+  return mobile;
+}
 import Map, { Source, Layer, Popup, NavigationControl } from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -760,7 +770,7 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
 
       {/* Toolbar */}
       <div style={{ padding:"8px 16px",borderBottom:"1px solid #e2e8f0",background:"#f8fafc",display:"flex",alignItems:"center",gap:8,flexShrink:0,flexWrap:"wrap" }}>
-        <div style={{ display:"flex",flex:1,minWidth:240,border:"1px solid #e2e8f0",borderRadius:8,overflow:"hidden",background:"#fff",boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
+        <div style={{ display:"flex",flex:1,minWidth:isMobile?120:240,border:"1px solid #e2e8f0",borderRadius:8,overflow:"hidden",background:"#fff",boxShadow:"0 1px 3px rgba(0,0,0,0.04)" }}>
           <input
             placeholder={ANTHROPIC_KEY?"AI search: try 'struggling secondaries in the north east with high FSM'…":"Search: school name, LA, or try 'primary schools in Newcastle outstanding'…"}
             value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doSearch()}
@@ -825,7 +835,7 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
       )}
 
       {/* Body */}
-      <div style={{ flex:1,display:"flex",overflow:"hidden" }}>
+      <div style={{ flex:1,display:"flex",overflow:"hidden",position:"relative",flexDirection:isMobile?"column":"row" }}>
 
         {/* Map */}
         <div style={{ flex:1,position:"relative" }}>
@@ -955,7 +965,27 @@ export default function SchoolsTab({ missions, missionSchools, setMissionSchools
         </div>
 
         {/* Right panel */}
-        <div style={{ width:340,borderLeft:"1px solid #e2e8f0",overflowY:"auto",background:"#fff",flexShrink:0,display:"flex",flexDirection:"column" }}>
+        <div style={isMobile ? {
+          position:"absolute",bottom:0,left:0,right:0,zIndex:20,
+          height:drawerOpen?"60vh":"48px",
+          background:"#fff",borderTop:"2px solid #e2e8f0",
+          overflowY:drawerOpen?"auto":"hidden",
+          transition:"height 0.3s ease",
+          flexShrink:0,display:"flex",flexDirection:"column"
+        } : {
+          width:340,borderLeft:"1px solid #e2e8f0",overflowY:"auto",
+          background:"#fff",flexShrink:0,display:"flex",flexDirection:"column"
+        }}>
+          {isMobile && (
+            <div onClick={()=>setDrawerOpen(o=>!o)} style={{
+              padding:"12px 16px",display:"flex",alignItems:"center",
+              justifyContent:"space-between",cursor:"pointer",flexShrink:0,
+              borderBottom:drawerOpen?"1px solid #e2e8f0":"none"
+            }}>
+              <span style={{fontSize:12,fontWeight:700,color:"#0f172a"}}>🏫 Mission Schools · Clusters</span>
+              <span style={{fontSize:16,color:"#6366f1"}}>{drawerOpen?"▼":"▲"}</span>
+            </div>
+          )}
           <div style={{ padding:"12px 16px 10px",borderBottom:"1px solid #f1f5f9",background:"#f8fafc",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0 }}>
             <span style={{ fontSize:12,fontWeight:700,color:"#0f172a" }}>Mission Schools & Clusters</span>
             <span style={{ fontSize:10,color:"#6366f1",fontWeight:600 }}>{missionSchools.length} selected</span>
