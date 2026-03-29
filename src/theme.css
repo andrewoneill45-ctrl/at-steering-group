@@ -12,12 +12,8 @@
 
 * { box-sizing: border-box; }
 
-body, #root {
+body {
   font-family: var(--font);
-  background: #f8fafc;
-  color: #0f172a;
   margin: 0;
   padding: 0;
-  height: 100vh;
-  overflow: hidden;
 }
