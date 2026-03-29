@@ -197,7 +197,6 @@ const StatsPanel = ({ filtered, allSchools, onClose, activeFilters }) => {
                 {s.rwm.length > 0 && <>
                   <AvgCard label="RWM Expected" value={avg(s.rwm)?.toFixed(0) + '%'} national={avg(s.rwmAll)?.toFixed(0) + '%'} />
                   <AvgCard label="Reading" value={avg(s.read)?.toFixed(0)} national={avg(s.readAll)?.toFixed(0)} />
-                  <AvgCard label="Maths" value={avg(s.mat)?.toFixed(0) + '%'} national={avg(s.matAll)?.toFixed(0) + '%'} />
                 </>}
                 <AvgCard label="FSM %" value={avg(s.fsm)?.toFixed(1) + '%'} national={avg(s.fsmAll)?.toFixed(1) + '%'} />
               </div>

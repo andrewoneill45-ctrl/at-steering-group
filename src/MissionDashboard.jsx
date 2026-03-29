@@ -474,9 +474,20 @@ function AnalyticsTab({ missionSchools }) {
     </div>
   );
 
+  // Enrich mission schools with full data from schools.json
+  const lookup = {};
+  allSchools.forEach(s => { lookup[String(s.urn)] = s; });
+  const enriched = missionSchools.map(ms => ({
+    ...lookup[String(ms.urn)],
+    ...ms,
+    p8_prev: lookup[String(ms.urn)]?.p8_prev ?? ms.p8_prev,
+    basics_95: lookup[String(ms.urn)]?.basics_95 ?? ms.basics_95,
+    a8_prev: lookup[String(ms.urn)]?.a8_prev ?? ms.a8_prev,
+  }));
+
   return (
     <StatsPanel
-      filtered={missionSchools}
+      filtered={enriched}
       allSchools={allSchools}
       onClose={null}
       activeFilters={{ mission: 'Mission Schools' }}
