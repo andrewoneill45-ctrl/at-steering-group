@@ -596,6 +596,178 @@ function DecisionsNeeded({ missions, missionSchools }) {
   );
 }
 
+
+// ─── School Risk Radar ─────────────────────────────────────────────────────────
+const NAT_ATT8_RISK = 46.4;
+const NAT_P8_RISK = 0;
+
+function getRiskSignals(school, missions) {
+  const signals = [];
+
+  // Attainment signals
+  const a8 = parseFloat(school.attainment8 || school.att8);
+  const p8 = parseFloat(school.p8_prev || school.progress8);
+  const basics = parseFloat(school.basics_94);
+  const a8prev = parseFloat(school.a8_prev);
+
+  if (!isNaN(a8) && a8 < 40)  signals.push({ type:"attainment", label:"Att8 below 40", severity:"high" });
+  else if (!isNaN(a8) && a8 < NAT_ATT8_RISK) signals.push({ type:"attainment", label:"Att8 below national", severity:"medium" });
+  if (!isNaN(p8) && p8 < -0.5) signals.push({ type:"attainment", label:"P8 below -0.5", severity:"high" });
+  if (!isNaN(basics) && basics < 50) signals.push({ type:"attainment", label:"Basics below 50%", severity:"medium" });
+  if (!isNaN(a8) && !isNaN(a8prev) && (a8 - a8prev) < -2) signals.push({ type:"attainment", label:"A8 declining >2pts", severity:"high" });
+
+  // Context signals
+  const fsm = parseFloat(school.fsm_pct || school.edu_fsm_pct);
+  const imd = school.imd_decile;
+  const eal = parseFloat(school.eal_pct);
+
+  if (!isNaN(fsm) && fsm > 45) signals.push({ type:"context", label:`FSM ${fsm.toFixed(0)}%`, severity:"medium" });
+  if (imd && imd <= 2) signals.push({ type:"context", label:`IMD decile ${imd}`, severity:"medium" });
+  if (!isNaN(eal) && eal > 30) signals.push({ type:"context", label:`EAL ${eal.toFixed(0)}%`, severity:"low" });
+
+  // Ofsted signals
+  if (school.ofsted === "Requires improvement") signals.push({ type:"ofsted", label:"Requires improvement", severity:"high" });
+  else if (school.ofsted === "Inadequate") signals.push({ type:"ofsted", label:"Inadequate", severity:"high" });
+  else if (!school.ofsted || school.ofsted === "Not inspected") signals.push({ type:"ofsted", label:"Not inspected", severity:"low" });
+
+  // Delivery signals — check linked phases
+  missions.forEach(m => {
+    (m.swimlanes||[]).forEach(sl => {
+      (sl.subrows||[]).forEach(sr => {
+        (sr.phases||[]).forEach(ph => {
+          if ((ph.schoolUrns||[]).includes(school.urn)) {
+            if (ph.rag === "R") signals.push({ type:"delivery", label:`Phase in trouble: ${ph.name}`, severity:"high" });
+            else if (ph.rag === "A") signals.push({ type:"delivery", label:`Phase at risk: ${ph.name}`, severity:"medium" });
+            if (ph.decisionNeeded) signals.push({ type:"delivery", label:`Decision needed: ${ph.name}`, severity:"medium" });
+          }
+        });
+      });
+    });
+  });
+
+  // No cluster assigned
+  if (!school.cluster) signals.push({ type:"delivery", label:"No cluster assigned", severity:"low" });
+
+  return signals;
+}
+
+function riskLevel(signals) {
+  const high = signals.filter(s=>s.severity==="high").length;
+  const med  = signals.filter(s=>s.severity==="medium").length;
+  if (high >= 2 || (high >= 1 && med >= 2)) return "critical";
+  if (high >= 1 || med >= 2) return "high";
+  if (med >= 1 || signals.length >= 2) return "medium";
+  if (signals.length >= 1) return "watch";
+  return "low";
+}
+
+const RISK_CONFIG = {
+  critical: { label:"Critical",  color:"#dc2626", bg:"#fee2e2", border:"#fecaca" },
+  high:     { label:"High Risk", color:"#ea580c", bg:"#fff7ed", border:"#fed7aa" },
+  medium:   { label:"Monitor",   color:"#d97706", bg:"#fef3c7", border:"#fde68a" },
+  watch:    { label:"Watch",     color:"#2563eb", bg:"#eff6ff", border:"#bfdbfe" },
+  low:      { label:"Low Risk",  color:"#16a34a", bg:"#f0fdf4", border:"#bbf7d0" },
+};
+
+const TYPE_COLORS = {
+  attainment: "#6366f1",
+  context:    "#d97706",
+  ofsted:     "#dc2626",
+  delivery:   "#0ea5e9",
+};
+
+function RiskRadar({ missionSchools, missions }) {
+  const [filter, setFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("risk");
+
+  const schoolsWithRisk = useMemo(() => {
+    return missionSchools.map(s => {
+      const signals = getRiskSignals(s, missions);
+      const level = riskLevel(signals);
+      return { ...s, signals, level };
+    });
+  }, [missionSchools, missions]);
+
+  const counts = useMemo(() => {
+    const c = { critical:0, high:0, medium:0, watch:0, low:0 };
+    schoolsWithRisk.forEach(s => c[s.level]++);
+    return c;
+  }, [schoolsWithRisk]);
+
+  const filtered = schoolsWithRisk
+    .filter(s => filter === "all" || s.level === filter)
+    .sort((a, b) => {
+      const order = { critical:0, high:1, medium:2, watch:3, low:4 };
+      if (sortBy === "risk") return order[a.level] - order[b.level];
+      if (sortBy === "name") return a.name.localeCompare(b.name);
+      if (sortBy === "signals") return b.signals.length - a.signals.length;
+      return 0;
+    });
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:8}}>
+        <div>
+          <div style={{fontSize:13,fontWeight:700,color:"#0f172a"}}>School Risk Radar</div>
+          <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{missionSchools.length} mission schools · multi-signal risk assessment</div>
+        </div>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <span style={{fontSize:9,color:"#94a3b8",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em"}}>Sort:</span>
+          {["risk","signals","name"].map(s=>(
+            <button key={s} onClick={()=>setSortBy(s)} style={{padding:"3px 8px",borderRadius:12,border:"1px solid",fontFamily:"inherit",borderColor:sortBy===s?"#4f46e5":"#e2e8f0",background:sortBy===s?"#4f46e5":"#fff",color:sortBy===s?"#fff":"#64748b",fontSize:9,fontWeight:600,cursor:"pointer",textTransform:"capitalize"}}>{s}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Risk summary pills */}
+      <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+        <button onClick={()=>setFilter("all")} style={{padding:"5px 12px",borderRadius:20,border:`1px solid ${filter==="all"?"#4f46e5":"#e2e8f0"}`,background:filter==="all"?"#4f46e5":"#fff",color:filter==="all"?"#fff":"#64748b",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+          All {missionSchools.length}
+        </button>
+        {Object.entries(RISK_CONFIG).filter(([k])=>counts[k]>0).map(([key,cfg])=>(
+          <button key={key} onClick={()=>setFilter(key===filter?"all":key)} style={{padding:"5px 12px",borderRadius:20,border:`1px solid ${filter===key?cfg.color:cfg.border}`,background:filter===key?cfg.bg:"#fff",color:cfg.color,fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:5}}>
+            <span style={{width:6,height:6,borderRadius:"50%",background:cfg.color,flexShrink:0}}/>
+            {cfg.label}: {counts[key]}
+          </button>
+        ))}
+      </div>
+
+      {/* School cards */}
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {filtered.map(school => {
+          const cfg = RISK_CONFIG[school.level];
+          const highSignals = school.signals.filter(s=>s.severity==="high");
+          const otherSignals = school.signals.filter(s=>s.severity!=="high");
+          return (
+            <div key={school.urn} style={{background:"#fff",borderRadius:10,border:`1px solid ${cfg.border}`,borderLeft:`3px solid ${cfg.color}`,padding:"12px 14px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+              <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,marginBottom:school.signals.length>0?8:0}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:11,fontWeight:700,color:"#0f172a",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{school.name}</div>
+                  <div style={{fontSize:9,color:"#94a3b8",marginTop:1}}>{school.la} · {school.phase} · Cluster: {school.cluster||"—"}</div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+                  <span style={{background:cfg.bg,color:cfg.color,borderRadius:10,padding:"2px 8px",fontSize:9,fontWeight:700,border:`1px solid ${cfg.border}`}}>{cfg.label}</span>
+                  <span style={{fontSize:10,color:"#94a3b8",fontWeight:600}}>{school.signals.length} signal{school.signals.length!==1?"s":""}</span>
+                </div>
+              </div>
+              {school.signals.length > 0 && (
+                <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                  {[...highSignals,...otherSignals].map((sig,i)=>(
+                    <span key={i} style={{fontSize:9,background:`${TYPE_COLORS[sig.type]}12`,color:TYPE_COLORS[sig.type],border:`1px solid ${TYPE_COLORS[sig.type]}30`,borderRadius:8,padding:"2px 7px",fontWeight:600}}>
+                      {sig.severity==="high"?"! ":""}{sig.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Dashboard ─────────────────────────────────────────────────────────────
 export default function MissionDashboard({ missions, missionSchools, themes }) {
   const [activeTab, setActiveTab] = useState("overview");
@@ -608,6 +780,12 @@ export default function MissionDashboard({ missions, missionSchools, themes }) {
   const totalPhases = allPhaseRAGs.length;
 
   const allClusters = useMemo(() => [...new Set(missionSchools.map(s=>s.cluster).filter(Boolean))], [missionSchools]);
+  const riskCount = useMemo(() => {
+    return missionSchools.filter(s => {
+      const sigs = getRiskSignals(s, missions);
+      return ["critical","high"].includes(riskLevel(sigs));
+    }).length;
+  }, [missionSchools, missions]);
   const decisionsCount = useMemo(() => {
     let n = 0;
     missions.forEach(m => (m.swimlanes||[]).forEach(sl => (sl.subrows||[]).forEach(sr => (sr.phases||[]).forEach(ph => { if(ph.decisionNeeded) n++; }))));
@@ -681,6 +859,7 @@ export default function MissionDashboard({ missions, missionSchools, themes }) {
           {id:"attendance",label:"Attendance"},
           {id:"analytics",label:"Analytics ✦"},
           {id:"decisions",label:decisionsCount>0?`Decisions (${decisionsCount})`:"Decisions"},
+          {id:"radar",label:riskCount>0?`Risk Radar (${riskCount})`:"Risk Radar"},
           {id:"dynamic",label:"Dynamic Schools ★"},
         ].map(({id,label})=>(
           <button key={id} onClick={()=>setActiveTab(id)} style={{
@@ -726,6 +905,7 @@ export default function MissionDashboard({ missions, missionSchools, themes }) {
       {/* Tab: Dynamic Schools */}
       {activeTab==="dynamic" && <DynamicQuadrant missionSchools={missionSchools} missions={missions}/>}
       {activeTab==="decisions" && <DecisionsNeeded missions={missions} missionSchools={missionSchools}/>}
+      {activeTab==="radar" && <RiskRadar missionSchools={missionSchools} missions={missions}/>}
 
       {/* Tab: Analytics */}
       {activeTab==="analytics" && (
