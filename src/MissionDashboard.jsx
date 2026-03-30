@@ -495,6 +495,107 @@ function AnalyticsTab({ missionSchools }) {
   );
 }
 
+
+// ─── Decisions Needed Panel ────────────────────────────────────────────────────
+function DecisionsNeeded({ missions, missionSchools }) {
+  const flagged = [];
+  missions.forEach(m => {
+    (m.swimlanes||[]).forEach(sl => {
+      (sl.subrows||[]).forEach(sr => {
+        (sr.phases||[]).forEach(ph => {
+          if (ph.decisionNeeded) {
+            flagged.push({
+              ...ph,
+              missionName: m.name,
+              missionColor: m.color,
+              swimlaneName: sl.name,
+              subrowName: sr.name,
+              linkedSchools: missionSchools.filter(s => (ph.schoolUrns||[]).includes(s.urn)),
+            });
+          }
+        });
+      });
+    });
+  });
+
+  if (!flagged.length) return (
+    <div style={{textAlign:"center",padding:"60px 20px"}}>
+      <div style={{fontSize:32,marginBottom:12}}>✓</div>
+      <div style={{fontSize:14,fontWeight:700,color:"#0f172a",marginBottom:4}}>No decisions needed</div>
+      <div style={{fontSize:11,color:"#94a3b8"}}>Flag phases in the Mission Planner when leadership input is required.</div>
+    </div>
+  );
+
+  const byMission = {};
+  flagged.forEach(ph => {
+    if (!byMission[ph.missionName]) byMission[ph.missionName] = { color: ph.missionColor, phases: [] };
+    byMission[ph.missionName].phases.push(ph);
+  });
+
+  return (
+    <div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+        <div>
+          <div style={{fontSize:13,fontWeight:700,color:"#0f172a"}}>Decisions Needed</div>
+          <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{flagged.length} phase{flagged.length!==1?"s":""} flagged for leadership attention</div>
+        </div>
+        <div style={{background:"#fef3c7",border:"1px solid #fde68a",borderRadius:8,padding:"6px 14px",fontSize:11,fontWeight:700,color:"#92400e"}}>
+          ! {flagged.length} outstanding
+        </div>
+      </div>
+
+      {Object.entries(byMission).map(([mName, {color, phases}]) => (
+        <div key={mName} style={{marginBottom:20}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+            <div style={{width:3,height:20,background:color,borderRadius:2}}/>
+            <div style={{fontSize:12,fontWeight:700,color:"#0f172a"}}>{mName}</div>
+            <div style={{fontSize:10,background:`${color}18`,color:color,borderRadius:10,padding:"1px 8px",fontWeight:600}}>{phases.length} decision{phases.length!==1?"s":""}</div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {phases.map(ph => (
+              <div key={ph.id} style={{background:"#fff",borderRadius:10,border:"1px solid #fde68a",borderLeft:`3px solid ${ph.rag==="R"?"#ef4444":ph.rag==="A"?"#f59e0b":"#10b981"}`,padding:"12px 16px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+                <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,marginBottom:8}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:"#0f172a"}}>{ph.name}</div>
+                    <div style={{fontSize:10,color:"#94a3b8",marginTop:1}}>{ph.swimlaneName} / {ph.subrowName}</div>
+                  </div>
+                  <div style={{display:"flex",gap:6,flexShrink:0}}>
+                    <span style={{background:ph.rag==="R"?"#fee2e2":ph.rag==="A"?"#fef3c7":"#d1fae5",color:ph.rag==="R"?"#991b1b":ph.rag==="A"?"#92400e":"#065f46",borderRadius:10,padding:"2px 8px",fontSize:9,fontWeight:700}}>
+                      {ph.rag==="R"?"In Trouble":ph.rag==="A"?"At Risk":"On Track"}
+                    </span>
+                    {ph.completion>0&&<span style={{background:"#f1f5f9",color:"#475569",borderRadius:10,padding:"2px 8px",fontSize:9,fontWeight:700}}>{ph.completion}%</span>}
+                  </div>
+                </div>
+                {ph.notes&&(
+                  <div style={{fontSize:11,color:"#374151",background:"#f8fafc",borderRadius:6,padding:"6px 10px",marginBottom:8,lineHeight:1.5}}>
+                    {ph.notes}
+                  </div>
+                )}
+                <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+                  {ph.owner&&(
+                    <div style={{display:"flex",alignItems:"center",gap:5,fontSize:10,color:"#64748b"}}>
+                      <div style={{width:18,height:18,borderRadius:"50%",background:"#e0e7ff",color:"#4f46e5",display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700}}>
+                        {ph.owner.trim().split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
+                      </div>
+                      {ph.owner}
+                    </div>
+                  )}
+                  {ph.linkedSchools.length>0&&(
+                    <div style={{fontSize:10,color:"#64748b"}}>
+                      {ph.linkedSchools.length} linked school{ph.linkedSchools.length!==1?"s":""}
+                      <span style={{color:"#94a3b8",marginLeft:4}}>{ph.linkedSchools.slice(0,2).map(s=>s.name.split(" ")[0]).join(", ")}{ph.linkedSchools.length>2?` +${ph.linkedSchools.length-2} more`:""}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Main Dashboard ─────────────────────────────────────────────────────────────
 export default function MissionDashboard({ missions, missionSchools, themes }) {
   const [activeTab, setActiveTab] = useState("overview");
@@ -507,6 +608,11 @@ export default function MissionDashboard({ missions, missionSchools, themes }) {
   const totalPhases = allPhaseRAGs.length;
 
   const allClusters = useMemo(() => [...new Set(missionSchools.map(s=>s.cluster).filter(Boolean))], [missionSchools]);
+  const decisionsCount = useMemo(() => {
+    let n = 0;
+    missions.forEach(m => (m.swimlanes||[]).forEach(sl => (sl.subrows||[]).forEach(sr => (sr.phases||[]).forEach(ph => { if(ph.decisionNeeded) n++; }))));
+    return n;
+  }, [missions]);
 
   // Aggregate metrics
   const avgFSM    = avg(missionSchools, getFSM);
@@ -574,6 +680,7 @@ export default function MissionDashboard({ missions, missionSchools, themes }) {
           {id:"gantt",label:"Delivery Signals"},
           {id:"attendance",label:"Attendance"},
           {id:"analytics",label:"Analytics ✦"},
+          {id:"decisions",label:decisionsCount>0?`Decisions (${decisionsCount})`:"Decisions"},
           {id:"dynamic",label:"Dynamic Schools ★"},
         ].map(({id,label})=>(
           <button key={id} onClick={()=>setActiveTab(id)} style={{
@@ -618,6 +725,7 @@ export default function MissionDashboard({ missions, missionSchools, themes }) {
 
       {/* Tab: Dynamic Schools */}
       {activeTab==="dynamic" && <DynamicQuadrant missionSchools={missionSchools} missions={missions}/>}
+      {activeTab==="decisions" && <DecisionsNeeded missions={missions} missionSchools={missionSchools}/>}
 
       {/* Tab: Analytics */}
       {activeTab==="analytics" && (
